@@ -1,0 +1,1 @@
+l4_master_v16\startup_stm32l471xx.o: startup_stm32l471xx.s

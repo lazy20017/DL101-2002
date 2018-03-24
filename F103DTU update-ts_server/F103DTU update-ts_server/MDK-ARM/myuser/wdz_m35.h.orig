@@ -1,0 +1,103 @@
+#include "stm32f1xx_hal.h"
+#include "bsp_usart1.h"
+#include "bsp_SysTick.h"
+#include <string.h>
+#include "bsp_led.h"
+#include "wdz_eeprom.h"
+#include "my_def_value.h"
+
+
+
+#define AT_REST "AT+CFUN=1,1\r\n"; //软重启命令
+#define AN_Call_Ready "Call Ready\r\n"
+
+#define AT "AT\r\n";               //测试命令
+#define AN_OK "OK\r\n"             //配置参数指令
+#define AT_V1 "ATV1\r\n"
+#define AT_E1 "ATE0\r\n"  //回显 1，为有回显，0为没有回显示
+#define AT_CEMEE "AT+CMEE=0\r\n"
+#define AT_IPR "AT+IPR=9600\r\n"
+#define AT_W "AT&W\r\n"
+#define AT_CPIN "AT+CPIN?\r\n"    //测试SIM卡指令
+#define AT_CREG "AT+CREG?\r\n"   //测试GPRS联网
+#define AT_QIDEACT "AT+QIDEACT\r\n"    //断开网络连接，防止重复进行连接报错
+#define AT_QIMODE "AT+QIMODE=0\r\n"
+#define AT_QICSGP "AT+QICSGP=1,\"WDZNET\"\r\n"
+#define AT_QIREGAPP "AT+QIREGAPP\r\n"
+#define AT_QIACT "AT+QIACT\r\n"
+#define AT_QILOCIP "AT+QILOCIP\r\n"
+#define AT_QIHEAD "AT+QIHEAD=1\r\n"
+#define AT_QIDNSIP0 "AT+QIDNSIP=0\r\n"  //利用IP建立连接
+#define AT_QIDNSIP1 "AT+QIDNSIP=1\r\n"   //利用域名建立连接
+//#define AT_QIOPEN(IP,PORT) "AT+QIOPEN=\"TCP\",\"(IP)\",\"(PORT)\"\r\n"   //利用域名建立连接
+#define AT_QIOPEN "AT+QIOPEN=\"TCP\",\r\n"   //建立TCP连接
+#define AN_CNNECT_OK "CONNECT OK\r\n"
+#define AT_QICLOSE "AT+QICLOSE\r\n"   //断开TCP连接
+#define AN_CLOSE_OK "CLOSE OK\r\n"
+#define AT_QISEND2 "AT+QISEND\r\n"   //发送TCP数据,非固定长度
+#define AT_QISEND "AT+QISEND="   //发送TCP数据，发送固定长度,最大长度1460
+#define AN_QISEND_WAIT ">"
+#define AN_QISEND_OK "SEND OK\r\n"
+//-----------以下短信使用------------------------------
+#define AT_CMGF "AT+CMGF=1\r\n"   //短信格式，文本模式
+#define AT_CSMP "AT+CSMP=17,167,0,0\r\n"  //信息模式
+#define AT_CSCS "AT+CSCS=\"GSM\"\r\n"   //字符编码模式
+#define AT_CSDH "AT+CSDH=0\r\n"   //报文头模式，0去掉报文头
+#define AT_CPMS_SM "AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n"  //信息存储方式
+
+#define AT_CMGL "AT+CMGL=\"ALL\",1"
+
+#define AT_CPMS "AT+CPMS?\r\n"   //检测短信数量
+#define AN_CPMS_OK "+CPMS: \"SM\","
+
+#define AT_CMGR "AT+CMGR="  //读取对应标号短信
+#define AT_CMGD14 "AT+CMGD=1,4\r\n"   //删除所有短信
+#define AT_CMGS "AT+CMGS=\""    //发送短信电话号码
+
+#define AT_CPBS "AT+CPBS=\"ON\"\r\n"  //设置本机电话号模式
+#define AT_CNUM "AT+CNUM\r\n"   // 返回本机电话号
+//---测量信号强度
+#define AT_CSQ "AT+CSQ\r\n"  //  测量信号强度
+
+#define my_GPRS_CRC_check 0
+
+
+void my_init_m35(void);
+uint8_t my_AT_process_usart(uint8_t *Data,uint32_t delay_time);
+uint8_t my_at_com(UART_HandleTypeDef* USARTx,uint8_t *AT_COMM,uint8_t *AT_ANSWER,uint8_t n,uint32_t time);
+uint8_t my_at_senddata(uint8_t *string);
+
+
+
+
+
+uint8_t my_AT_MESS_send(uint8_t *smpt,uint8_t *telphonenumber); //主动发送短信，信息字符串和电话号
+
+
+
+void my_AT_MESS_Check(void); //短消息主动检查 主程序
+uint8_t my_AT_MESS_getnumber(void);  //（1）获得当前短信数量
+uint8_t my_AT_MESS_read(uint8_t *rmpt,uint8_t index); //（2）读取当前对应的index号短信到数组中
+uint8_t my_AT_MESS_analys(uint8_t *rmpt); //（3）分析当前短信的内容，调用相应的函数进行处理
+uint8_t my_AT_MESS_dellall(void); //（4）删除所有短信
+uint8_t my_AT_MESS_IP(uint8_t *rmpt);//3-1对短信内容进行分析，判断是否为IP地址设置，如果是则进行处理，返回1，不是IP地址处理返回0
+uint8_t my_AT_MESS_DTU(uint8_t *rmpt); //3-2通过短信设置DTU地址
+uint8_t my_AT_MESS_System(uint8_t *rmpt); //3-3系统功能处理***
+uint8_t my_AT_MESS_DTUREST(uint8_t *rmpt);//3-4正常短信重启命令
+uint8_t my_AT_MESS_DTUINFO(uint8_t *rmpt);//3-5返回基本信息
+uint8_t my_AT_MESS_HEART_CYCLE(uint8_t *rmpt); //3-6设置心跳包和周期包
+void my_reset_mcu2(void);  //重启MCU通过软命令
+
+
+void my_AT_MESS_Transmit_Alarm_data(void);//短信主动发送报警数据
+void my_AT_MESS_Transmit_Telephonenumber_data(void);//短信主动发送报警数据
+
+uint8_t AT_Get_Frame(uint8_t *pt);  //如果返回OK，则取M35返回的信息
+uint8_t AT_Get_SIM_Telephonenumber(uint8_t *pt); //获得当前SIM卡的电话号放入到缓冲区中pt
+void AT_M35_Reset(void);   //定时对M35进行检查，如果出现问题，则进行重启
+uint16_t get_string_number(uint8_t *string);
+                         
+uint8_t AT_Get_AT_Answer_string(uint8_t *AT_COMM,uint8_t *AT_ANSWER,uint8_t *pt);
+void AT_GET_CSQ(void);
+//=========20170609
+uint8_t my_at_senddata_long(uint8_t *string);  //GPRS发送超长数据，超过1450个字节

@@ -1,0 +1,4757 @@
+#include "my_gprs.h"
+#include "my_cc1101.h"
+
+/*
+GPRS·¢ËÍÊı¾İÀûÓÃ  uint8_t my_at_senddata(uint8_t *string);
+GPRS·ÖÎö½ÓÊÕÊı¾İÀûÓÃ
+uint8_t my_usart_101frame(uint8_t usart_port);
+void my_process_resive_101usart1(void); //M35Ê¹ÓÃ
+*/
+
+uint8_t  WDZ_GPRS_101FCB = 0X00;
+
+
+extern  uint32_t TimingDelay;
+extern uint16_t DTU_ADDRESS;
+
+extern	uint16_t USART1_address_first;
+extern	uint16_t USART1_address_second;
+extern	uint8_t USART1_length;
+extern	uint8_t USART1_FRAME_status;
+extern	uint8_t USART1_my_frame[256];
+extern	uint8_t USART1_TRANSMINT_STATUS;
+extern	uint8_t USART1_RESIVER_STATUS;
+
+
+extern uint8_t rsbuf1[];	  //USART1»º³åÆ÷
+extern uint8_t txbuf1[];
+extern uint16_t rsbuf1pt_write;
+extern uint16_t rsbuf1pt_read;
+extern uint16_t rsbuf1pt_TEMP_read;
+extern uint16_t rsbuf1pt_COMM_read;
+
+//=====
+extern	uint16_t USART3_address_first;
+extern	uint16_t USART3_address_second;
+extern	uint8_t USART3_length;
+extern	uint8_t USART3_FRAME_status;
+extern	uint8_t USART3_my_frame[256];
+extern	uint8_t USART3_TRANSMINT_STATUS;
+extern	uint8_t USART3_RESIVER_STATUS;
+
+
+extern uint8_t rsbuf3[];	  //USART1»º³åÆ÷
+extern uint8_t txbuf3[];
+extern uint16_t rsbuf3pt_write;
+extern uint16_t rsbuf3pt_read;
+extern uint16_t rsbuf3pt_TEMP_read;
+extern uint16_t rsbuf3pt_COMM_read;
+
+
+//=====
+
+
+
+extern struct rtc_time systmtime;  //RTCÊµÊ±Ê±ÖÓÊ¹ÓÃ
+extern u8 rtcbuffer[];
+
+//-------------------
+extern uint8_t MY_GPRS_MCU_RsBuf[8];  //´æ´¢£¬ÖÜÆÚĞÔµç³ØµçÑ¹¡¢Ì«ÑôÄÜµçÑ¹¡¢ÎÂ¶È¡¢Êª¶È¹²4Àà8¸ö×Ö½ÚµÄÊı¾İ
+
+extern uint8_t MY_GPRS_Call_Single_data_buf[40];
+extern uint8_t MY_GPRS_Call_Analog_data_buf[110];
+extern uint8_t MY_GPRS_Call_Time_data_buf[7];
+extern uint8_t MY_GPRS_Call_Single_data_number;
+extern uint8_t MY_GPRS_Call_Analog_data_number;
+extern uint8_t MY_GPRS_Call_Status;    //´æ´¢»ñµÃ×ÜÕÙÊı¾İ×´Ì¬£¬Îª1±íÊ¾ÓĞ×ÜÕÙÊı¾İ£¬Îª0±íÊ¾Ã»ÓĞ×ÜÕÙÊı¾İ
+
+extern uint8_t MY_EEPROM_Buf[256];  //ÓÃÀ´´æ´¢EEPROMÖĞ£¬¶Á³öµÄÊı¾İ
+extern uint8_t MY_GPRS_Cycle_Transmintdata_status;  //ÓÃÀ´´æ´¢¶ÁÈ¡µ½×ÜÕÙÊı¾İ·¢ËÍ×´Ì¬£¬1ÎªÒÑ·¢ËÍ£¬2ÎªÎ´·¢ËÍ
+
+
+extern uint8_t GPRS_Status;  //±êÊ¶×îÖÕÊÖ»úÄ£¿é£¬GPRSÍøÂç×´Ì¬£¬1ÎªÕı³££¬¿ÉÒÔÁ¬½Ó·şÎñÆ÷£¬0ÎªÓĞÎÊÌâ£¬ĞèÒª´¦Àí
+extern uint8_t MESS_Status;  //¶ÌĞÅÍøÂç×´Ì¬
+extern uint8_t NET_Status;  //NETÁªÍø×´Ì¬
+extern uint8_t NET_Server_status; //Ô¶¶Ë·şÎñÆ÷server×´Ì¬
+
+//-----------------
+extern	uint8_t MY_433_Alarmdata_NOtimeBuf[256]; //´æ´¢ ÎŞÊ±±ê ±¨¾¯Êı¾İ
+extern	uint8_t MY_433_Alarmdata_TimeBuf[256];  //´æ´¢£¬ÓĞÊ±±ê£¬±¨¾¯Êı¾İ
+extern	uint8_t MY_433_ALarmdata_number;  // ´æ´¢£¬±¨¾¯ĞÅÏ¢Ìå¸öÊı
+
+
+extern	uint8_t MY_433_ALarmdata_NOtime_status; //Îª1£¬±íÊ¾ÊÕµ½ÎŞÊ±±ê±¨¾¯Êı¾İ
+extern	uint8_t MY_433_ALarmdata_Time_status;   //Îª1£¬±íÊ¾ÊÕµ½ÓĞÊ±±ê±¨¾¯Êı¾İ
+
+//extern uint8_t AT_MESS_telphonenumber[];
+
+extern  uint8_t MY_MCU_RsBuf[];
+extern uint8_t MY_433_Call_Single_data_buf[];
+extern uint8_t MY_433_Call_Analog_data_buf[];
+extern uint8_t MY_433_Call_Time_data_buf[];
+extern uint8_t MY_433_Call_Single_data_number;
+extern uint8_t MY_433_Call_Analog_data_number;
+
+//------------
+extern uint32_t MY_Table1_Alarmdata_StartAddress;
+extern uint32_t MY_Table1_Alarmdata_EndAddress;
+extern uint32_t MY_Table1_Alarmdata_WriteAddress;
+extern uint32_t MY_Table1_Alarmdata_ReadAddress;
+
+
+extern  uint8_t RE_ALarmData_Status;
+
+extern uint8_t MY_MCU_getdata_status;
+extern uint8_t MY_433_Call_Status;
+
+extern	uint8_t my_433_anlag_buf[110];  //´æ´¢433Ä£ÄâÁ¿£¬²»½øĞĞÇå0´¦Àí£¬²»´æ´¢£¬Ö»ÒªÓĞ±ä»¯£¬ÀûÓÃ±êÖ¾Î»½øĞĞ×ª·¢¡£
+extern	uint8_t my_433_anlag_flag;  //±êÖ¾Î»£¬Îª0±íÊ¾ÒÑ¾­·¢ËÍÁËĞÂÊı¾İ£¬Îª1±íÊ¾ÓĞĞÂÊı¾İµ«ÊÇ»¹Ã»ÓĞ·¢ËÍ
+
+
+
+extern uint16_t MY_H_speed_cyc;  //ÖÜÆÚ10·ÖÖÓ
+extern uint16_t MY_H_speed_heart;  //ĞÄÌø5·ÖÖÓ
+
+extern uint16_t MY_M_speed_cyc;  //ÖÜÆÚ15·ÖÖÓ
+extern uint16_t MY_M_speed_heart;  //ĞÄÌø9·ÖÖÓ
+
+extern uint16_t MY_L_speed_cyc;  //ÖÜÆÚ30·ÖÖÓ
+extern uint16_t MY_L_speed_heart; //ĞÄÌø7·ÖÖÓ
+
+extern float MY_Speed_H_Gate;
+extern float MY_Speed_L_Gate;
+
+extern uint16_t my_tim6_count;
+
+extern struct indicator_class
+{
+    uint8_t duanlu_data;
+    uint8_t jiedi_data;
+    uint8_t DC_data_buf[14]; //1ÎÂ¶È£¬2µçÔ´£¬3²Î¿¼µçÑ¹£¬4¸Éµç³Ø£¬5ÏßÉÏµçÑ¹£¬6Ì«ÑôÄÜ£¬7ï®µç³Ø
+    uint8_t AC_data_buf[6];  //È«²¨µçÁ÷£¬µç³¡¡¢°ë²¨µçÁ÷
+    uint8_t AC12T_ALL_Current_data_buf[24];
+    uint8_t AC12T_ALL_dianchang_data_buf[24];
+    uint8_t AC12T_HALF_Current_data_buf[24];
+    uint8_t data_time_buf[7]; //RTC
+    uint8_t data_type;  //01ÎªÖÜÆÚ£¬02Îª±¨¾¯
+    uint8_t count_time[2];  //È«¾ÖÍ¬²½Öµ
+
+} my_indicator_data[];
+
+
+/*
+¹¦ÄÜ£º·¢ËÍÃüÁî£¬µÈ´ı£¨ÌØ¶¨£©·´À¡ÃüÁî
+·¢ËÍÊı¾İtypeÎªÀàĞÍ£¬1Îª¹Ì¶¨³¤¶È£¬2Îª·Ç¹Ì¶¨³¤¶È£¬txbufÎª·¢ËÍÖ¸ÁîÊı×é,address_typeÎª1£¬rxbufÎª½ÓÊÕ
+£¨2,txbuf,2,rxbuf)·¢ËÍ·Ç¹Ì¶¨³¤¶È£¬(1,txbuf,2,rxbuf)·¢ËÍ¹Ì¶¨³¤¶È
+*/
+uint8_t WDZ_GPRS_101transmint_commd_wait_commd(uint8_t type, uint8_t *txbuf, uint8_t address_type, uint8_t *rxbuf) //typeÎªÀàĞÍ£¬1Îª¹Ì¶¨³¤¶È£¬2Îª·Ç¹Ì¶¨³¤¶È£¬txbufÎª·¢ËÍÖ¸ÁîÊı×é
+{
+    uint8_t FCB = 0x20;
+    uint16_t my_dtu_address = DTU_ADDRESS;
+    uint8_t my_status = 0;
+    uint8_t n = 1; //·¢ËÍ´ÎÊı
+    uint8_t *my_txbuf = txbuf;
+//	uint8_t temp=0;
+
+    uint8_t linkcontrol = 0;
+    uint8_t type_identification = 0;
+    uint8_t  transmit_reason = 0;
+    uint16_t my_start_time = 0;
+//********************·¢ËÍ·Ç¹Ì¶¨³¤¶ÈÖ¡£¬Ó¦´ğÎªOKÖ¡
+    if(type == 2)
+    {
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_txbuf[4] = my_txbuf[4] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_txbuf[4] = my_txbuf[4] | (FCB);
+        //Ä¿µÄµØÖ·´¦Àí
+        my_txbuf[5] = my_dtu_address & 0xFF;
+        my_txbuf[6] = my_dtu_address >> 8;
+        if(address_type == 1)
+        {
+            my_txbuf[10] = my_txbuf[5];
+            my_txbuf[11] = my_txbuf[6];
+        }
+        else if(address_type == 2)
+        {
+            my_txbuf[10] = my_txbuf[5];
+            my_txbuf[11] = my_txbuf[6];
+        }
+
+        //Ğ£ÑéÎ»²úÉú
+        wdz_GPRS_101check_generate(my_txbuf);
+        //·¢ËÍÖ¸Áî
+        while((n) > 0 && my_status == 0)
+        {
+
+            my_at_senddata(my_txbuf); //ÀûÓÃGPRS·¢ËÍÊı¾İÊı×é
+
+            //Delay_us(300); //²âÊÔÊ¹ÓÃ
+
+            my_start_time = my_tim6_count;
+            do {
+
+                my_status = WDZ_GPRS_101receive_testactive(0X80, 00, 00, 1500); ///WDZ_GPRS_101recive_OKdata();  //µÈ´ı0KÈ·ÈÏ·´À¡ÃüÁî 15Ãë
+                if(my_status == 1)break;
+                else my_status = 0;
+            } while(my_tim6_count - my_start_time <= 3);
+            n--;
+            if(n != 0) USART_printf(&huart1, "\x1A"); //·¢Ò»¸ö½áÊø·û£¬·ÀÖ¹ÓµÈû
+
+        }
+
+
+
+    }
+
+
+//**************·¢ËÍ¹Ì¶¨³¤¶ÈÖ¡£¬Ó¦´ğÎª¹Ì¶¨³¤¶ÈÖ¡
+    else	if(type == 1 && rxbuf[0] == 0x10)
+    {
+        //²úÉú½ÓÊÕµÄ¿ØÖÆÓòÂë£¬ÀàĞÍ£¬´«ÊäÔ­Òò
+        linkcontrol = rxbuf[1];
+        type_identification = 0;
+        transmit_reason = 0;
+
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_txbuf[1] = my_txbuf[1] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_txbuf[1] = my_txbuf[1] | (FCB);
+        //Ä¿µÄµØÖ·´¦Àí
+        my_txbuf[2] = my_dtu_address & 0xFF;
+        my_txbuf[3] = my_dtu_address >> 8;
+
+        //Ğ£ÑéÎ»²úÉú
+        wdz_GPRS_101check_generate(my_txbuf);
+        //·¢ËÍÖ¸Áî
+        while((n--) > 0 && my_status == 0)
+        {
+            //my_UART4_printf(UART4,my_txbuf);
+            my_at_senddata(my_txbuf); //ÀûÓÃGPRS·¢ËÍÊı¾İÊı×é
+
+            //Delay_us(300); //²âÊÔ
+
+            my_status = WDZ_GPRS_101receive_testactive(linkcontrol, type_identification, transmit_reason, 1500); //µÈ´ı·´À¡ÃüÁî
+            if(my_status == 1)break;
+            else my_status = 0;
+        }
+    }
+//**********·¢ËÍ¹Ì¶¨³¤¶ÈÖ¡£¬Ó¦¸ÃÎª·Ç¹Ì¶¨³¤¶ÈÖ¡
+    else if(type == 1 && rxbuf[0] == 0x68)
+    {
+        //²úÉú½ÓÊÕµÄ¿ØÖÆÓòÂë£¬ÀàĞÍ£¬´«ÊäÔ­Òò
+        linkcontrol = rxbuf[4];
+        type_identification = rxbuf[7];
+        transmit_reason = rxbuf[9];
+
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_txbuf[1] = my_txbuf[1] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_txbuf[1] = my_txbuf[1] | (FCB);
+        //Ä¿µÄµØÖ·´¦Àí
+        my_txbuf[2] = my_dtu_address & 0xFF;
+        my_txbuf[3] = my_dtu_address >> 8;
+
+        //Ğ£ÑéÎ»²úÉú
+        wdz_GPRS_101check_generate(my_txbuf);
+        //·¢ËÍÖ¸Áî
+        while((n--) > 0 && my_status == 0)
+        {
+            //my_UART4_printf(UART4,my_txbuf);
+            my_at_senddata(my_txbuf);
+
+            //Delay_us(600); //²âÊÔ
+
+            my_status = WDZ_GPRS_101receive_testactive(linkcontrol, type_identification, transmit_reason, 1500); //µÈ´ı·´À¡ÃüÁî
+            if(my_status == 1)break;
+            else my_status = 0;
+        }
+    }
+
+
+    //¼ÇÂ¼·¢ËÍ±ä»¯Ö¡
+    WDZ_GPRS_101FCB = WDZ_GPRS_101FCB ^ 0x20;
+    if(my_status == 1)
+    {
+        return 1;
+    }
+    else return 0;
+
+}
+
+
+
+
+
+
+
+
+
+
+/*
+Ğ£Ñé×Ö¼ì²é
+*/
+uint8_t wdz_GPRS_101char_check(uint8_t *buffer)
+{
+    uint16_t k = 0;
+    uint8_t status68 = 0;
+    uint8_t temp = 0;
+    uint8_t check_char = 0x00;
+
+    if(buffer[0] == 0x10)
+    {
+        status68 = 1;
+    }
+    else if(buffer[0] == 0x68)
+    {
+        status68 = 2;
+    }
+
+    if(status68 == 1) //¹Ì¶¨³¤¶ÈĞ£ÑéÎ»¼ì²é
+    {
+        check_char = buffer[1] + buffer[2] + buffer[3];
+        if(check_char == buffer[4])
+            temp = 1;
+        else temp = 0;
+
+
+    }
+    else if(status68 == 2) //·Ç¹Ì¶¨³¤¶ÈĞ£ÑéÎ»¼ì²é
+    {
+        for(k = 0; k < buffer[1]; k++)
+        {
+            check_char = check_char + buffer[k + 4];
+        }
+
+        if(check_char == buffer[buffer[1] + 4])
+            temp = 1;
+        else temp = 0;
+    }
+    return temp;
+
+
+}
+
+
+
+
+
+
+
+/*
+Éú³ÉĞ£Ñé×Ö
+*/
+void wdz_GPRS_101check_generate(uint8_t *buffer)
+{
+    uint16_t k = 0;
+    uint8_t status68 = 0;
+
+    uint8_t check_char = 0x00;
+
+    if(buffer[0] == 0x10)
+    {
+        status68 = 1;
+    }
+    else if(buffer[0] == 0x68)
+    {
+        status68 = 2;
+    }
+
+
+    if(status68 == 1) //¹Ì¶¨³¤¶ÈĞ£ÑéÎ»¼ì²é
+    {
+        check_char = buffer[1] + buffer[2] + buffer[3];
+        buffer[4] = check_char;
+    }
+    else if(status68 == 2) //·Ç¹Ì¶¨³¤¶ÈĞ£ÑéÎ»¼ì²é
+    {
+        for(k = 0; k < buffer[1]; k++)
+        {
+            check_char = check_char + buffer[k + 4];
+        }
+        buffer[buffer[1] + 4] = check_char;
+    }
+
+
+}
+
+
+
+
+
+
+/*
+¹¦ÄÜ£º²âÊÔÓ¦´ğÖ¡£¬ÓÃÔÚÖ÷¶¯·¢ËÍµÄÏìÓ¦¹ı³ÌÖĞ
+ÊäÈë²ÎÊı£ºLink_control£¬Óò¿ØÖÆÂë£¬type_identification-Ö¡ÀàĞÍ£¬transmit_reason-´«ÊäÔ­Òò£¬time-¼ì²âÊ±¼ä
+ÊäÈë½á¹û£ºÓ¦´ğÕıÈ·Îª1£¬Ó¦´ğ´íÎó»òÃ»ÓĞÓ¦´ğÎª0
+*/
+uint8_t WDZ_GPRS_101receive_testactive(uint8_t Link_control, uint8_t type_identification, uint8_t transmit_reason, uint16_t time)
+{
+    uint8_t temp = 0;
+    uint8_t *rsbuf = USART1_my_frame;
+
+    uint8_t status68 = 0; //2´ú±í·Ç¹Ì¶¨³¤¶ÈÖ¡£¬1´ú±í¹Ì¶¨³¤¶È6µÄÖ¡£¬0´ú±íÎÊÌâ»ò´¦ÀíÍê³É
+    uint16_t my_dtu_address = 0;
+    uint16_t my_start_time = 0;
+
+
+
+    my_start_time = my_tim6_count;
+    while(my_tim6_count - my_start_time <= 3)
+    {   my_usart_GPRS_101frame(1);
+        if(USART1_FRAME_status > 0)
+        {
+            //Ö¡Í·¼ì²é
+            if(rsbuf[0] == 0x68)
+            {
+                status68 = 2;
+            }
+
+            else if(rsbuf[0] == 0x10)
+            {
+                status68 = 1;
+            }
+
+//************0x10¹Ì¶¨³¤¶ÈÖ¡´¦Àí
+            //Õ¾µØÖ·¼ì²é
+            if(status68 == 1)
+            {
+                my_dtu_address = rsbuf[3];
+                my_dtu_address = (my_dtu_address << 8) + rsbuf[2];
+                if(my_dtu_address == DTU_ADDRESS)
+                    status68 = 1;
+                else status68 = 0;
+            }
+            //Ğ£Ñé×Ö½Ú¼ì²é
+            if(status68 == 1)
+            {
+                temp = wdz_GPRS_101char_check(rsbuf); //²âÊÔÊ±¿ÉÒÔ¿¼ÂÇÏÈ²»Ê¹ÓÃ
+                if(temp == 1) status68 = 1;
+                else status68 = 0;
+            }
+
+
+
+            //Ö¡ÀàĞÍ¼ì²é¡¢´«ÊäÔ­Òò¼ì²é
+            if(status68 == 1)
+            {
+
+                if((rsbuf[1] & 0x0f) == (Link_control & 0x0f))
+                {
+                    temp = 1;
+                    //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                    USART1_FRAME_status = 0;
+                    break;
+                }
+                else
+                {   temp = 0;
+                    //²âÊÔ£¬°Ñ½ÓÊÕµ½µÄÖ¡×ª·¢´®¿Ú3
+                    USART_printf(&huart3, "GPRS44");
+                    USART_printf(&huart3, USART1_my_frame);
+                    USART_printf(&huart3, "\n");
+                    my_display_ASCIIdata(USART1_my_frame);
+                    //USART_printf(&huart3,"GPRS4");
+                    //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                    USART1_FRAME_status = 0;
+                }
+
+                //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                USART1_FRAME_status = 0;
+            }
+
+
+
+//************0x68·Ç¹Ì¶¨³¤¶ÈÖ¡´¦Àí
+            //´ÓÕ¾µØÖ·¼ì²é
+            if(status68 == 2)
+            {
+                my_dtu_address = rsbuf[6];
+                my_dtu_address = (my_dtu_address << 8) + rsbuf[5];
+                if(my_dtu_address == DTU_ADDRESS)
+                    status68 = 2;
+                else status68 = 0;
+            }
+            //Ğ£Ñé×Ö½Ú¼ì²é
+
+            if(status68 == 2)
+            {
+                temp = wdz_GPRS_101char_check(rsbuf); //²âÊÔÊ±¿ÉÒÔ¿¼ÂÇÏÈ²»Ê¹ÓÃ
+                if(temp == 1) status68 = 2;
+                else status68 = 0;
+            }
+
+
+
+            //Ö¡ÀàĞÍ¼ì²é¡¢´«ÊäÔ­Òò¼ì²é 68 0D 0D 68 53 01 00 68 01 07 00 01 00 00 00 55 E3 FD 16
+            if(status68 == 2)
+            {
+                if(((rsbuf[4] & 0x0f) == (Link_control & 0x0f)) && (rsbuf[7] == type_identification) && (rsbuf[9] == transmit_reason))
+                {
+                    temp = 1;
+                    //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                    USART1_FRAME_status = 0;
+                    break;
+                }
+                else
+                {   temp = 0;
+                    //²âÊÔ£¬°Ñ½ÓÊÕµ½µÄÖ¡×ª·¢´®¿Ú3
+                    USART_printf(&huart3, "GPRS66-1");
+                    USART_printf(&huart3, USART1_my_frame);
+                    //USART_printf(&huart3,"GPRS6");
+                    //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                    USART1_FRAME_status = 0;
+                }
+            }
+            //********************·Ç¹Ì¶¨³¤¶ÈÖ¡´¦Àí½áÊø
+
+            //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+            USART1_FRAME_status = 0;
+
+        }
+
+
+    }
+
+    return temp;
+
+}
+
+/*
+¹¦ÄÜ :±»¶¯½ÓÊÕµ½101Ö¸Áî·´Ó¦£¬Èç¹ûÊÇÕıÈ·µÄÔò´¦ÀíÍê³É¶ÔÖ¡»º³åÇø±êÊ¶Îª0£¬²»ÊÇÕıÈ·µÄÔò²»´¦Àí£¬Ö¡»º³åÇø×´Ì¬±£³Ö²»±ä
+*/
+uint8_t WDZ_GPRS_101receive_testactive2(uint8_t Link_control, uint8_t type_identification, uint8_t transmit_reason, uint16_t time)
+{
+    uint8_t temp = 0;
+    uint8_t *rsbuf = USART1_my_frame;
+
+    uint8_t status68 = 0; //2´ú±í·Ç¹Ì¶¨³¤¶ÈÖ¡£¬1´ú±í¹Ì¶¨³¤¶È6µÄÖ¡£¬0´ú±íÎÊÌâ»ò´¦ÀíÍê³É
+    uint16_t my_dtu_address = 0;
+
+
+    if(USART1_FRAME_status > 0)
+    {
+        //Ö¡Í·¼ì²é
+        if(rsbuf[0] == 0x68)
+        {
+            status68 = 2;
+        }
+
+        else if(rsbuf[0] == 0x10)
+        {
+            status68 = 1;
+        }
+
+//************0x10¹Ì¶¨³¤¶ÈÖ¡´¦Àí
+        //Õ¾µØÖ·¼ì²é
+        if(status68 == 1)
+        {
+            my_dtu_address = rsbuf[3];
+            my_dtu_address = (my_dtu_address << 8) + rsbuf[2];
+            if(my_dtu_address == DTU_ADDRESS)
+                status68 = 1;
+            else status68 = 0;
+        }
+        //Ğ£Ñé×Ö½Ú¼ì²é
+        if(status68 == 1)
+        {
+            //temp=wdz_GPRS_101char_check(rsbuf);  //²âÊÔÊ±¿ÉÒÔ¿¼ÂÇÏÈ²»Ê¹ÓÃ
+            temp = 1; //²âÊÔÊ¹ÓÃ£¬×Ö½ÚĞ£ÑéÎªÕæ
+            if(temp == 1) status68 = 1;
+            else status68 = 0;
+        }
+
+
+
+        //Ö¡ÀàĞÍ¼ì²é¡¢´«ÊäÔ­Òò¼ì²é
+        if(status68 == 1)
+        {
+
+            if((rsbuf[1] & 0x0f) == (Link_control & 0x0f))
+            {
+                temp = 1;
+                //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                USART1_FRAME_status = 0;
+                //break;
+            }
+            else
+            {   temp = 0;
+                //²âÊÔ£¬°Ñ½ÓÊÕµ½µÄÖ¡×ª·¢´®¿Ú3
+                USART_printf(&huart3, "GPRS44-2");
+                USART_printf(&huart3, USART1_my_frame);
+                USART_printf(&huart3, "\r\n");
+                my_display_ASCIIdata(USART1_my_frame);
+                //USART_printf(&huart3,"GPRS4");
+                //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                //USART1_FRAME_status=0;
+            }
+
+            //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+            //	USART1_FRAME_status=0;
+        }
+
+
+
+//************0x68·Ç¹Ì¶¨³¤¶ÈÖ¡´¦Àí
+        //´ÓÕ¾µØÖ·¼ì²é
+        if(status68 == 2)
+        {
+            my_dtu_address = rsbuf[6];
+            my_dtu_address = (my_dtu_address << 8) + rsbuf[5];
+            if(my_dtu_address == DTU_ADDRESS)
+                status68 = 2;
+            else status68 = 0;
+        }
+        //Ğ£Ñé×Ö½Ú¼ì²é
+
+        if(status68 == 2)
+        {
+            temp = wdz_GPRS_101char_check(rsbuf); //²âÊÔÊ±¿ÉÒÔ¿¼ÂÇÏÈ²»Ê¹ÓÃ
+            if(temp == 1) status68 = 2;
+            else status68 = 0;
+        }
+
+
+
+        //Ö¡ÀàĞÍ¼ì²é¡¢´«ÊäÔ­Òò¼ì²é 68 0D 0D 68 53 01 00 68 01 07 00 01 00 00 00 55 E3 FD 16
+        if(status68 == 2)
+        {
+            if(((rsbuf[4] & 0x0f) == (Link_control & 0x0f)) && (rsbuf[7] == type_identification) && (rsbuf[9] == transmit_reason))
+            {
+                temp = 1;
+                //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                USART1_FRAME_status = 0;
+                //break;
+            }
+            else
+            {   temp = 0;
+                //²âÊÔ£¬°Ñ½ÓÊÕµ½µÄÖ¡×ª·¢´®¿Ú3
+                USART_printf(&huart3, "GPRS66-2");
+                USART_printf(&huart3, USART1_my_frame);
+                //USART_printf(&huart3,"GPRS6");
+                //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+                //USART1_FRAME_status=0;
+            }
+        }
+        //********************·Ç¹Ì¶¨³¤¶ÈÖ¡´¦Àí½áÊø
+
+        //Ö¡µÄ´¦Àí¹ı³Ì½áÊø
+        //USART1_FRAME_status=0;
+
+    }
+
+
+
+
+    return temp;
+
+}
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ£ºÊı¾İ½ÓÊÕ·ÖÎö£¬´Ë²¿·ÖÎª·ÖÎö101Ğ­ÒéÊı¾İ£¬ÓĞÖ¡Í·£¬ÓĞÖ¡Î²£¬ÓĞÖ¡³¤£¬ÕâÈı¸ö²ÎÊıºÜÖØÒª£¬È¡ÍêÕûµÄÒ»Ö¡Êı¾İ¡£
+ÊäÈë²ÎÊı£º´®¿ÚºÅ
+Êä³ö²ÎÊı£º È¡Ö¡Êı¾İ³É¹¦·µ»Ø1£¬È¡Ö¡Êı¾İÊ§°Ü·µ»Ø0
+*/
+uint8_t my_usart_GPRS_101frame(uint8_t usart_port)
+{
+    uint8_t *rsbuf = 0;
+    uint16_t *rsbufpt_read = 0;
+    uint16_t *rsbufpt_COMM_read = 0;
+    uint16_t *rsbufpt_write = 0;
+    uint8_t *my_frame = 0;
+    uint8_t *USART_FRAME = 0;
+
+
+    uint16_t *address_first = 0;
+    uint16_t *address_second = 0;
+    uint8_t *length = 0;
+
+    uint8_t ch1 = 0;
+    uint16_t pt = 0;
+    uint8_t tmp_status = 0;
+    uint8_t status = 0;
+    uint16_t ii = 0;
+
+    uint8_t my_temp_status = 0;
+
+
+
+//******´®¿ÚµÄÑ¡Ôñ****************
+    if(usart_port == 1)
+    {
+        rsbuf = rsbuf1;
+        rsbufpt_read = &rsbuf1pt_read;
+        rsbufpt_COMM_read = &rsbuf1pt_COMM_read;
+        rsbufpt_write = &rsbuf1pt_write;
+        address_first = &USART1_address_first;
+        address_second = &USART1_address_second;
+        length = &USART1_length;
+        my_frame = USART1_my_frame;
+        USART_FRAME = &USART1_FRAME_status;
+
+        *rsbufpt_COMM_read = *rsbufpt_read;
+
+    }
+
+    if(usart_port == 3)
+    {
+        rsbuf = rsbuf3;
+        rsbufpt_read = &rsbuf3pt_read;
+        rsbufpt_COMM_read = &rsbuf3pt_COMM_read;
+        rsbufpt_write = &rsbuf3pt_write;
+        address_first = &USART3_address_first;
+        address_second = &USART3_address_second;
+        length = &USART3_length;
+        my_frame = USART3_my_frame;
+        USART_FRAME = &USART3_FRAME_status;
+
+        *rsbufpt_COMM_read = *rsbufpt_read;
+
+    }
+
+////////****´®¿ÚÑ¡Ôñ½áÊø***************
+
+
+
+    while(*USART_FRAME == 0 && *rsbufpt_COMM_read != *rsbufpt_write) //Ç°Ò»¸öÖ¸Áî´¦ÀíÍê³É£¬»¹ÓĞÎ´´¦ÀíµÄ×Ö·û£¬Ôò½øĞĞ´¦Àí¡£½áÊøÌõ¼ş£¬ÓĞÍêÕûµÄÒ»ÌõÖ¸Áî»òÕßËùÓĞ×Ö·û´¦ÀíÍê³É
+    {
+
+        //È¡Ò»¸öÎ´´¦ÀíµÄ×Ö·û
+        if(*rsbufpt_COMM_read == rsbuf_max - 1)
+        {
+            ch1 = rsbuf[*rsbufpt_COMM_read];
+            *rsbufpt_COMM_read = 0;
+            pt = *rsbufpt_COMM_read;
+        }
+        else
+        {
+            ch1 = rsbuf[*rsbufpt_COMM_read];
+            *rsbufpt_COMM_read = *rsbufpt_COMM_read + 1;
+            pt = *rsbufpt_COMM_read;
+        }
+
+        //½øĞĞ0X68Ö¡Í·ºÍÖ¡Î²±ê¼Ç
+        if(ch1 == 0x68)
+        {
+            tmp_status = 1;
+        }
+        else if(ch1 == 0x16)
+        {
+            tmp_status = 2;
+        }
+        else
+        {
+            *USART_FRAME = 0;
+            my_temp_status = 0;
+            tmp_status = 0;
+        }
+
+
+        //½øĞĞ0X68Ö¡Í··ÖÎö
+        if(tmp_status == 1)
+        {
+
+            //
+            if((pt > 0 && pt < 4) && ch1 == rsbuf[rsbuf_max + pt - 4] && ch1 == 0x68)
+            {
+
+                *address_first = rsbuf_max + pt - 4;
+                if(pt - 3 == 0)*length = rsbuf[pt - 3];
+                else *length = rsbuf[rsbuf_max + pt - 3];
+
+            }
+            else if(pt >= 4 && ch1 == rsbuf[pt - 4] && ch1 == 0x68)
+            {
+
+                *address_first = pt - 4;
+                *length = rsbuf[pt - 3];
+            }
+            else if(pt == 0 && ch1 == rsbuf[rsbuf_max - 4] && ch1 == 0x68)
+            {
+
+                *address_first = rsbuf_max - 4;
+                *length = rsbuf[rsbuf_max - 3];
+            }
+
+            else
+            {
+                *USART_FRAME = 0;
+                my_temp_status = 0;
+                tmp_status = 0;
+            }
+
+        }
+        //½øĞĞÓÉÖ¡Î²µ½Ö¡Í·µÄ·ÖÎö
+        if(tmp_status == 2)
+        {
+
+            //¹Ì¶¨³¤¶ÈÖ¡
+            if(pt > 0 && pt < 6 && rsbuf[rsbuf_max + pt - 6] == 0x10)
+            {
+
+                *address_first = rsbuf_max + pt - 6;
+                *length = 6;
+                *address_second = pt - 1;
+                *USART_FRAME = 1;
+                my_temp_status = 1;
+
+            }
+            else if(pt >= 6 && rsbuf[pt - 6] == 0x10)
+            {
+
+                *address_first = pt - 6;
+                *length = 6;
+                *address_second = pt - 1;
+                *USART_FRAME = 1;
+                my_temp_status = 1;
+            }
+            else if(pt == 0 && rsbuf[rsbuf_max - 6] == 0x10)
+            {
+
+                *address_first = rsbuf_max - 6;
+                *length = 6;
+                *address_second = pt - 1;
+                *USART_FRAME = 1;
+                my_temp_status = 1;
+            }
+            //·Ç¹Ì¶¨³¤¶ÈÖ¡
+            if(pt - 6 - *address_first == (*length) && *address_first < pt)
+            {
+                *address_second = pt - 1;
+                *USART_FRAME = 2;
+                my_temp_status = 2;
+            }
+            else if(*address_first > pt && pt != 0)
+            {
+                if((pt + rsbuf_max - *address_first - 6) == (*length))
+                {   *address_second = pt - 1;
+                    *USART_FRAME = 2;
+                    my_temp_status = 2;
+                }
+            }
+            else if(pt == 0)
+            {
+                if((rsbuf_max - *address_first - 6) == (*length))
+                {   *address_second = rsbuf_max - 1;
+                    *USART_FRAME = 2;
+                    my_temp_status = 2;
+                }
+            }
+            //
+
+
+        }
+    }
+//È¡Ò»Ö¡Êı¾İ´æÈëµ½Ö¸ÁîÊı×éÖĞ
+
+
+
+    if(my_temp_status > 0)	 //Èç¹ûÓĞÍêÕûÒ»Ö¡Êı¾İ£¬¾Í¿ªÊ¼´¦Àí£¬·ñÔò·µ»Ø£¬²»´¦Àí
+    {
+        //Çå¿ÕÃüÁîÊı×éÇø
+        for(ii = 0; ii < 256; ii++)
+        {
+            my_frame[ii] = 0;
+        }
+
+        //È¡¹Ì¶¨³¤¶ÈÖ¸Áî
+        if(rsbuf[*address_first] == 0x10)
+        {
+            for(ii = 0; ii < 6; ii++)
+            {
+                my_frame[ii] = rsbuf[*address_first];
+                *address_first = *address_first + 1;
+                if(*address_first >= rsbuf_max) *address_first = 0;
+            }
+
+            *rsbufpt_read = *address_second + 1;
+            if(*rsbufpt_read >= rsbuf_max)*rsbufpt_read = 0;
+
+            status = 1;
+        }
+        //È¡·Ç¹Ì¶¨³¤¶ÈÖ¸Áî
+        else if(rsbuf[*address_first] == 0x68)
+        {
+            for(ii = 0; ii < 6 + *length; ii++)
+            {
+                my_frame[ii] = rsbuf[*address_first];
+                *address_first = *address_first + 1;
+                if(*address_first >= rsbuf_max) *address_first = 0;
+            }
+
+            *rsbufpt_read = *address_second + 1;
+            if(*rsbufpt_read >= rsbuf_max)*rsbufpt_read = 0;
+            status = 1;
+        }
+        else
+        {
+            status = 0;
+        }
+    }
+
+    //½øĞĞ·µ»Ø´¦Àí
+    if(status == 1)
+    {
+        //*USART_FRAME=0;  //È¡ÍêÒ»Ö¡Ö¸Áî½øĞĞ±ê¼Ç
+        //printf("\r\nOK=%s",my_frame);
+        //USART_printf(USARTx,"\r\nOK=%s",my_frame);
+        //USART_printf(USARTx,"%s",my_frame);
+        return(1);
+    }
+    else
+    {
+        //USART_FRAME=0;  //È¡ÍêÒ»Ö¡Ö¸Áî½øĞĞ±ê¼Ç
+        //printf("\r\nERROR");
+        return(0);
+    }
+
+}
+
+
+
+
+
+
+
+
+/*
+·¢ËÍOK¿Ï¶¨È·ÈÏÖ¸Áî
+
+*/
+void WDZ_GPRS_101Transmit_OKdata(void)
+{
+    uint16_t my_dtu_address = DTU_ADDRESS;
+    uint8_t commd[] = TX_GPRS_101_OKdata;
+    //my_UART4_printf(UART4,commd);
+
+//Ä¿µÄµØÖ·´¦Àí
+    commd[2] = my_dtu_address & 0xFF;
+    commd[3] = my_dtu_address >> 8;
+
+    //Ğ£ÑéÎ»²úÉú
+    wdz_GPRS_101check_generate(commd);
+
+    my_at_senddata(commd);
+
+}
+
+
+
+
+
+
+/*
+ÃüÁî×Ö·û´®¸´ÖÆµ½Êı×éÖĞ
+*/
+void wdz_GPRS_string_to_array(uint8_t *my_string, uint8_t *txbuf)
+{
+    uint32_t k = 0;
+    uint32_t length = 0;
+    if(my_string[0] == 0x10)
+    {
+        length = 6;
+    }
+    else if(my_string[0] == 0x68)
+    {
+        length = my_string[1] + 6;
+    }
+    //=================
+
+    for(k = 0; k < length; k++)
+    {
+        txbuf[k] = my_string[k];
+    }
+    //===========
+    if(my_string[0] == 0x10)
+    {
+        txbuf[2] = DTU_ADDRESS;
+        txbuf[3] = (DTU_ADDRESS >> 8);
+    }
+    else if(my_string[0] == 0x68)
+    {
+        txbuf[5] = DTU_ADDRESS;
+        txbuf[6] = (DTU_ADDRESS >> 8);
+
+        txbuf[10] = DTU_ADDRESS; //
+        txbuf[11] = (DTU_ADDRESS >> 8);
+
+
+    }
+    txbuf[length - 2] = my_fun_101check_generate(txbuf, 0);
+    txbuf[k] = 0;
+}
+
+
+
+
+
+
+
+
+//*************Ö÷¶¯·¢ËÍÃüÁî²¿·Ö*******
+/*
+¹¦ÄÜ£º·¢ËÍĞÄÌø°ü£¬µÈ´ıÓ¦´ğ³ÌĞò
+
+·¢ËÍĞÄÌø°ü£¬10 D2 01 00 D3 16 »òÕß 10 F2 01 00 F3 16
+½ÓÊÕÈ·ÈÏ°ü  10 80 01 00 81 16 »òÕß 10 82 01 00 83 16
+*/
+extern uint8_t link_status_GPRS;
+extern uint8_t GPRS_Heartdata_error_count;  //ÅĞ¶ÏĞÄÌø°üÊ§°ÜµÄ´ÎÊı£¬Èç¹ûµ½5´ÎÁË£¬¾Í±êÊ¶GPRSÍøÂç¹ÊÕÏ£¬È»ºóÀûÓÃÕâ¸ö¼ÆÊıÖµ½øĞĞM35µÄÖØÆôÅĞ¶Ï
+uint8_t WDZ_GPRS_101transmit_heartdata(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[7] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[7] = TX_GPRS_101_heartdata;
+
+
+    my_status = WDZ_GPRS_101transmint_commd_wait_commd(1, my_txbuf, 1, my_rxbuf);
+
+    if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server heart-\r\n");
+        GPRS_Heartdata_error_count++;
+    }
+    else if(my_status == 1)
+    {
+        USART_printf(&huart3, " Server heart*\r\n");
+        GPRS_Heartdata_error_count = 0;
+    }
+    //ÍøÂçÁ¬½Ó×´Ì¬ÅĞ¶Ï£¬Èç¹û5´ÎÊ§°Ü£¬¾Í±êÊ¶ÍøÂçÓĞÎÊÌâ£¬ÖØĞÂÆô¶¯M35
+    if(GPRS_Heartdata_error_count >= 3)
+    {
+        GPRS_Status = 0;
+        NET_Server_status = 0;
+        //GPRS_Heartdata_error_count=0;
+
+        link_status_GPRS = 0; //GPRSÍøÂçÈç¹û¶Ï¿ªÁË£¬ÔòÈÏÎª101Á´Â·¶ÏÁË
+    }
+
+    return my_status;
+
+}
+
+
+
+
+
+
+
+
+//*************·¢ËÍ²âÊÔÖÜÆÚÊı¾İÃüÁî*************
+
+/*
+68 0C 0C 68 73 01 00 68 01 06 00 01 00 00 AA 55 E3 16²âÊÔÃüÁî(¼¤»î)
+        £¨¿Ï¶¨È·ÈÏ£©10 80 01 00 81 16
+ 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16(Ò£ĞÅÊı¾İ°ü)
+ £¨Ò£²âÊı¾İ°ü£©
+  £¨»·¾³Êı¾İ°ü£©
+				£¨¿Ï¶¨È·ÈÏ£©10 80 01 00 81 16
+*/
+
+extern uint32_t MY_Table2_Cycledata_StartAddress;
+extern uint32_t MY_Table2_Cycledata_EndAddress;
+extern uint32_t MY_Table2_Cycledata_WriteAddress;
+extern uint32_t MY_Table2_Cycledata_ReadAddress;
+extern uint8_t MY_GPRS_Call_Single_data_number;
+extern uint8_t MY_GPRS_Call_Analog_data_number;
+
+uint8_t WDZ_GPRS_101transmit_Cycle_data(void)  //·¢ËÍÀúÊ·Êı¾İ£¬ĞŞ¸Ä·½°¸2016-05-27£¬ÀúÊ·Êı¾İÖ»·¢ËÍÒ»ÌìµÄ¡£10*24=240ÌõÊı¾İ
+{
+    uint8_t tempbuf[12] = {0};
+    uint32_t startaddressPT = MY_Table2_Cycledata_StartAddress;
+    uint32_t endaddressPT = MY_Table2_Cycledata_EndAddress;
+    uint32_t writeaddressPT = MY_Table2_Cycledata_WriteAddress;
+    uint32_t readaddressPT = MY_Table2_Cycledata_ReadAddress;
+    uint32_t tableaddress = 0;
+
+    uint8_t my_status = 0;
+    uint8_t tempstaus = 0;
+    uint8_t my_rxbuf[7] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_testdata;
+    uint16_t my_tx_cn = 0;
+
+
+//***´¦Àí»ñµÃ×îĞÂµÄ±íÖ¸ÕëµØÖ·
+    SPI_EE_BufferRead2(tempbuf, 213, 12);
+
+    my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
+    MY_Table2_Cycledata_StartAddress = startaddressPT;
+    MY_Table2_Cycledata_EndAddress = endaddressPT;
+    MY_Table2_Cycledata_WriteAddress = writeaddressPT;
+    MY_Table2_Cycledata_ReadAddress = readaddressPT;
+
+//--------------
+//½øĞĞ¶ÁÖ¸ÕëÄ©Î²Ğ£Ñé£¬Èç¹ûµ½ÁËÄ©Î²£¬¾Í·µ»ØÆğÊ¼µØÖ·£¬È»ºóĞ´Èë±íÖĞ
+    if(readaddressPT + 144 > endaddressPT)
+    {   readaddressPT = startaddressPT;
+        MY_Table2_Cycledata_ReadAddress = readaddressPT;
+        tempbuf[0] = readaddressPT & 0x0000ff;
+        tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+        tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+        SPI_EE_BufferWrite2(tempbuf, 222, 3);
+    }
+
+
+//----------------------
+
+    if(readaddressPT > writeaddressPT)
+    {
+        while(readaddressPT > writeaddressPT)
+        {
+            if(GPRS_Status == 1 && link_status_GPRS == 1)
+                my_status = 1;
+            else
+                my_status = 0;
+
+            wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //ÃÜÂëÖ¸Áî
+            //my_status=WDZ_GPRS_101transmint_commd(2,my_txbuf,2);
+            my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+            if(my_status == 1)
+            {
+                //my_status=WDZ_101receive_testactive(0x03,0x68,0x07,300);
+//***********ÖØÒª****·¢ËÍÖÜÆÚĞÔÊı¾İ****
+//ÏÈ´ÓEEPROMÖĞ¶Á³öÀ´£¬·Åµ½3¸öÌØ¶¨Êı×éÖĞ£¬È»ºó·¢ËÍ3¸ö101ĞÅÏ¢°ü£¬Ò£ĞÅ£¬Ò£²â¡¢»·¾³£¬´øÊ±±ê¡£
+//µÈ´ıServer¿Ï¶¨È·ÈÏ£¬È·ÈÏºóĞŞ¸ÄEEPROMÖĞÊı¾İ°üµÄGPRS·¢ËÍ×´Ì¬£¬Í¬Ê±ĞŞ¸Ä¶ÁÖ¸ÕëµØÖ·
+
+                tempstaus = my_eeprom_data_to_cycle_array(); //°ÑÊı¾İ´æÈëµ½GPRS·¢ËÍÊı×éÖĞ*********
+                if(tempstaus == 0)
+                {
+                    if((MY_GPRS_Cycle_Transmintdata_status != 1 && MY_GPRS_Cycle_Transmintdata_status != 2) | (MY_GPRS_Call_Single_data_number != 18) || (MY_GPRS_Call_Analog_data_number != 36))
+                    {   //ÒÆ¶¯¶ÁÖ¸Õë
+                        readaddressPT = writeaddressPT;	 //ÒòÎª¶ÁÖ¸ÕëÒÑ¾­ÅÜÆ«£¬Ö±½Ó°ÑËüĞ£Õıµ½Ğ´Ö¸Õë2015-11.16
+                        tempbuf[0] = readaddressPT & 0x0000ff;
+                        tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+                        tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+                        tableaddress = 222;
+                        SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+                        my_status = 0;
+                        return my_status;
+                    }
+                }
+
+
+                if(tempstaus == 1)
+                {
+                    //Éú³É·¢ËÍÊı¾İ°ü£¬·¢ËÍÊı¾İ£¬ÏÈ·¢Ò£ĞÅ¡¢ÔÙ·¢Ò£²â¡¢×îºó·¢»·¾³
+                    //Ò£ĞÅÊı¾İ°ü 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
+
+                    my_gprs_generate_101single_data(1, my_txbuf);
+                    //my_at_senddata(my_txbuf);
+
+                    //ĞÂÔö
+                    //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+
+                    my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+                    if(my_status == 1)
+                    {
+
+                        //Ò£²âÊı¾İ°ü
+                        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+                        my_gprs_generate_101analog_data(1, my_txbuf);
+                        //my_at_senddata(my_txbuf);
+
+                        //ĞÂÔö
+                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+                    }
+                    else
+                    {
+                        my_status = 0;
+                        USART_printf(&huart3, "GPRS Sing data error"); //µ÷ÊÔÊ¹ÓÃ
+                    }
+
+
+                    if(my_status == 1)
+                    {
+                        //»·¾³Êı¾İ°ü
+                        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+                        my_gprs_generate_101MCU_data(1, my_txbuf);
+                        //my_at_senddata(my_txbuf);
+                        //ĞÂÔö
+                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+                    }
+                    else
+                    {
+                        my_status = 0;
+                        USART_printf(&huart3, "GPRS angale data error"); //µ÷ÊÔÊ¹ÓÃ
+                    }
+
+                    if(my_status == 0)
+                    {
+                        USART_printf(&huart3, "GPRS MCU data error"); //µ÷ÊÔÊ¹ÓÃ
+                    }
+
+                }
+                else
+                {
+                    //Éú²ú¿ÕÊı¾İ°ü£¬·¢ËÍÊı¾İ°ü
+                    my_gprs_generate_101single_data(0, my_txbuf);
+                    my_at_senddata(my_txbuf);
+                    my_gprs_generate_101analog_data(0, my_txbuf);
+                    my_at_senddata(my_txbuf);
+                    my_gprs_generate_101MCU_data(0, my_txbuf);
+                    my_at_senddata(my_txbuf);
+
+                }
+
+                //½ÓÊÕserver·¢À´µÄ¿Ï¶¨È·ÈÏÊı¾İ°ü
+                //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500); //¾ÉµÄ·½°¸£¬²»ÒªÈ·ÈÏµÄ·½°¸
+
+            }
+
+
+            else if(my_status == 0)
+            {   //Delay_us(100);
+                USART_printf(&huart3, " Server Cycle data error1\r\n");
+                break;
+                //LED3_TOGGLE;
+            }
+
+
+
+            if(my_status == 1) //·¢ËÍ³É¹¦ÁË£¬×îÖÕ
+            {
+                //½øĞĞ·¢ËÍÖ¡×´Ì¬×Ö½ÚĞŞ¸Ä£¬ºÍÒÆ¶¯EEPROMµÄ±í¶ÁÖ¸Õë
+                if(tempstaus == 1)
+                    my_GPRS_chang_tablereadpt(2, 1); //³É¹¦£¬ĞŞ¸Ä´ËÖ¡×´Ì¬Îª1£¬±íÊ¾·¢ËÍ³öÈ¥ÁË£¬ÒÆ¶¯¶ÁÖ¸Õë
+                else if(tempstaus == 0)
+                {
+                    my_GPRS_chang_tablereadpt(2, 0);  //Ê§°Ü£¬Ò²ĞŞ¸ÄÎª1£¬ÈÃÖ¸Õë¶¯ÆğÀ´£¬//ĞŞ¸ÄÎª2£¬Î´·¢ËÍ£¬²»ÒÆ¶¯Ö¸Õë
+                    break;
+                }
+
+                //Delay_us(100);
+                USART_printf(&huart3, " Server Cycle data OK1*--%d\r\n", my_tx_cn);
+
+
+                //--2016-5-27 ·¢ËÍÖÜÆÚÊı¾İ¿ØÖÆ£¬Ö»·¢ËÍÒ»ÌìµÄÖÜÆÚÀúÊ·Êı¾İ£¬·ÀÖ¹³¤Ê±¼äÕ¼ÓÃ¡£10*24=240
+                my_tx_cn++;  //·¢ËÍÊı¾İÌõÊı¼ÆÊı
+                if(my_tx_cn > TX_History_cyc_data_record)
+                {
+                    readaddressPT = writeaddressPT;	 //ÒòÎª¶ÁÖ¸ÕëÒÑ¾­ÅÜÆ«£¬Ö±½Ó°ÑËüĞ£Õıµ½Ğ´Ö¸Õë2016-5-27
+                    tempbuf[0] = readaddressPT & 0x0000ff;
+                    tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+                    tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+                    tableaddress = 222;
+                    SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+
+                }
+
+
+                // LED2_TOGGLE;
+            }
+            else if(my_status == 0)
+            {   //Delay_us(100);
+                USART_printf(&huart3, " Server Cycle data errort2 \r\n");
+                //LED3_TOGGLE;
+            }
+            //***´¦Àí»ñµÃ×îĞÂµÄ±íÖ¸ÕëµØÖ·
+            SPI_EE_BufferRead2(tempbuf, 213, 12);
+            my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
+            MY_Table2_Cycledata_StartAddress = startaddressPT;
+            MY_Table2_Cycledata_EndAddress = endaddressPT;
+            MY_Table2_Cycledata_WriteAddress = writeaddressPT;
+            MY_Table2_Cycledata_ReadAddress = readaddressPT;
+
+
+        }
+        //½øĞĞ¶ÁÖ¸ÕëÒÆ¶¯
+        if(readaddressPT > endaddressPT || (readaddressPT + 144) > endaddressPT) //½øĞĞ¶ÁÖ¸ÕëĞ£Õı
+        {   readaddressPT = startaddressPT;
+
+            tempbuf[0] = readaddressPT & 0x0000ff;
+            tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+            tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+            tableaddress = 222;
+            SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+
+        }
+
+
+    }
+    else if(readaddressPT < writeaddressPT)
+    {
+        while(readaddressPT < writeaddressPT)
+        {
+            if(GPRS_Status == 1 && link_status_GPRS == 1)
+                my_status = 1;
+            else
+                my_status = 0;
+
+            wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //ÃÜÂëÖ¸Áî
+            //my_status=WDZ_GPRS_101transmint_commd(2,my_txbuf,2);
+            my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+            if(my_status == 1)
+            {
+                //my_status=WDZ_101receive_testactive(0x03,0x68,0x07,300);
+//***********ÖØÒª****·¢ËÍÖÜÆÚĞÔÊı¾İ****
+//ÏÈ´ÓEEPROMÖĞ¶Á³öÀ´£¬·Åµ½3¸öÌØ¶¨Êı×éÖĞ£¬È»ºó·¢ËÍ3¸ö101ĞÅÏ¢°ü£¬Ò£ĞÅ£¬Ò£²â¡¢»·¾³£¬´øÊ±±ê¡£
+//µÈ´ıServer¿Ï¶¨È·ÈÏ£¬È·ÈÏºóĞŞ¸ÄEEPROMÖĞÊı¾İ°üµÄGPRS·¢ËÍ×´Ì¬£¬Í¬Ê±ĞŞ¸Ä¶ÁÖ¸ÕëµØÖ·
+
+                tempstaus = my_eeprom_data_to_cycle_array(); //°ÑÊı¾İ´æÈëµ½GPRS·¢ËÍÊı×éÖĞ*********
+                //Ç¿ÖÆĞ£ÑéÖ¸Õë»·½Ú£¬´ÓEEPROMÖĞ¶ÁµÄÊı¾İÊÇ´íµÄ,2015-11.16
+                if(tempstaus == 0)
+                {
+                    if((MY_GPRS_Cycle_Transmintdata_status != 1 && MY_GPRS_Cycle_Transmintdata_status != 2) | (MY_GPRS_Call_Single_data_number != 18) || (MY_GPRS_Call_Analog_data_number != 36))
+                    {   //ÒÆ¶¯¶ÁÖ¸Õë
+                        readaddressPT = writeaddressPT;	 //ÒòÎª¶ÁÖ¸ÕëÒÑ¾­ÅÜÆ«£¬Ö±½Ó°ÑËüĞ£Õıµ½Ğ´Ö¸Õë2015-11.16
+                        tempbuf[0] = readaddressPT & 0x0000ff;
+                        tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+                        tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+                        tableaddress = 222;
+                        SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+                        my_status = 0;
+                        return my_status;
+                    }
+                }
+
+                if(tempstaus == 1)
+                {
+                    //Éú³É·¢ËÍÊı¾İ°ü£¬·¢ËÍÊı¾İ£¬ÏÈ·¢Ò£ĞÅ¡¢ÔÙ·¢Ò£²â¡¢×îºó·¢»·¾³
+                    //Ò£ĞÅÊı¾İ°ü 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
+
+                    my_gprs_generate_101single_data(1, my_txbuf);
+                    //my_at_senddata(my_txbuf);
+
+                    //ĞÂÔö
+                    //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+
+                    my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+                    if(my_status == 1)
+                    {
+
+                        //Ò£²âÊı¾İ°ü
+                        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+                        my_gprs_generate_101analog_data(1, my_txbuf);
+                        //my_at_senddata(my_txbuf);
+
+                        //ĞÂÔö
+                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+                    }
+                    else
+                    {
+                        my_status = 0;
+                        USART_printf(&huart3, "GPRS Sing data error"); //µ÷ÊÔÊ¹ÓÃ
+                    }
+
+
+                    if(my_status == 1)
+                    {
+                        //»·¾³Êı¾İ°ü
+                        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+                        my_gprs_generate_101MCU_data(1, my_txbuf);
+                        //my_at_senddata(my_txbuf);
+                        //ĞÂÔö
+                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+                    }
+                    else
+                    {
+                        my_status = 0;
+                        USART_printf(&huart3, "GPRS angale data error"); //µ÷ÊÔÊ¹ÓÃ
+                    }
+
+                    if(my_status == 0)
+                    {
+                        USART_printf(&huart3, "GPRS MCU data error"); //µ÷ÊÔÊ¹ÓÃ
+                    }
+
+                }
+                else
+                {
+                    //Éú²ú¿ÕÊı¾İ°ü£¬·¢ËÍÊı¾İ°ü
+                    my_gprs_generate_101single_data(0, my_txbuf);
+                    my_at_senddata(my_txbuf);
+                    my_gprs_generate_101analog_data(0, my_txbuf);
+                    my_at_senddata(my_txbuf);
+                    my_gprs_generate_101MCU_data(0, my_txbuf);
+                    my_at_senddata(my_txbuf);
+
+                }
+
+                //½ÓÊÕserver·¢À´µÄ¿Ï¶¨È·ÈÏÊı¾İ°ü
+                //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500); //¾ÉµÄ·½°¸£¬²»ÒªÈ·ÈÏµÄ·½°¸
+
+            }
+
+
+            else if(my_status == 0)
+            {
+                USART_printf(&huart3, " Server Cycle data error3\r\n");
+                break;
+            }
+
+
+
+            if(my_status == 1) //·¢ËÍ³É¹¦ÁË£¬×îÖÕ
+            {
+                //½øĞĞ·¢ËÍÖ¡×´Ì¬×Ö½ÚĞŞ¸Ä£¬ºÍÒÆ¶¯EEPROMµÄ±í¶ÁÖ¸Õë
+                if(tempstaus == 1)
+                {
+                    my_GPRS_chang_tablereadpt(2, 1); //³É¹¦£¬ĞŞ¸Ä´ËÖ¡×´Ì¬Îª1£¬±íÊ¾·¢ËÍ³öÈ¥ÁË£¬ÒÆ¶¯¶ÁÖ¸Õë
+                }
+                else if(tempstaus == 0)
+                {
+                    my_GPRS_chang_tablereadpt(2, 0);  //Ê§°Ü£¬ĞŞ¸ÄÎª2£¬Î´·¢ËÍ£¬²»ÒÆ¶¯Ö¸Õë
+                    USART_printf(&huart3, " Server Cycle data errort4-1 \r\n");
+                    break;
+                }
+
+                //Delay_us(100);
+                USART_printf(&huart3, " Server Cycle data OK2*--%d\r\n", my_tx_cn);
+
+                //--2016-5-27 ·¢ËÍÖÜÆÚÊı¾İ¿ØÖÆ£¬Ö»·¢ËÍÒ»ÌìµÄÖÜÆÚÀúÊ·Êı¾İ£¬·ÀÖ¹³¤Ê±¼äÕ¼ÓÃ¡£10*24=240
+                my_tx_cn++;  //·¢ËÍÊı¾İÌõÊı¼ÆÊı
+                if(my_tx_cn > TX_History_cyc_data_record)
+                {
+                    readaddressPT = writeaddressPT;	 //ÒòÎª¶ÁÖ¸ÕëÒÑ¾­ÅÜÆ«£¬Ö±½Ó°ÑËüĞ£Õıµ½Ğ´Ö¸Õë2016-5-27
+                    tempbuf[0] = readaddressPT & 0x0000ff;
+                    tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+                    tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+                    tableaddress = 222;
+                    SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+
+                }
+                //---2016-05-27 ĞŞ¸Ä½áÊø
+                // LED2_TOGGLE;
+            }
+            else if(my_status == 0)
+            {   //Delay_us(100);
+                USART_printf(&huart3, " Server Cycle data errort4 \r\n");
+                //LED3_TOGGLE;
+            }
+            //***´¦Àí»ñµÃ×îĞÂµÄ±íÖ¸ÕëµØÖ·
+            SPI_EE_BufferRead2(tempbuf, 213, 12);
+            my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
+            MY_Table2_Cycledata_StartAddress = startaddressPT;
+            MY_Table2_Cycledata_EndAddress = endaddressPT;
+            MY_Table2_Cycledata_WriteAddress = writeaddressPT;
+            MY_Table2_Cycledata_ReadAddress = readaddressPT;
+
+
+        }
+        //½øĞĞ¶ÁÖ¸ÕëÒÆ¶¯
+        if(readaddressPT > writeaddressPT) //½øĞĞ¶ÁÖ¸ÕëĞ£Õı
+        {   readaddressPT = writeaddressPT;
+
+            tempbuf[0] = readaddressPT & 0x0000ff;
+            tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+            tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+            tableaddress = 222;
+            SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+
+        }
+
+
+    }
+
+
+
+
+
+
+
+
+
+
+    return my_status;
+
+}
+
+
+
+
+
+/*
+¹¦ÄÜ£ºÉú³ÉÒ£ĞÅÊı¾İ°ü  68 23 23 68 73 01 00 02 ?? 14 01 00 01 00 ?? ??  ??  ** 16
+*/
+void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf)
+{
+    uint8_t length = 0;
+
+
+    if(temp == 1) //Éú³ÉÊı¾İ°ü
+    {
+        length = MY_GPRS_Call_Single_data_number;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10 + 7; //18+10+7
+        my_rsbuf[2] = length + 10 + 7;
+
+        //¿ØÖÆÓòÂë´¦Àí
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        //my_rsbuf[4]=0x73&WDZ_GPRS_101FCB;  //¿ØÖÆÓòÂëÎª53/73
+
+        my_rsbuf[5] = DTU_ADDRESS;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8);
+
+        my_rsbuf[7] = 0X02; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8);
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x00;
+
+        my_buf1_to_buf2(MY_GPRS_Call_Single_data_buf, 0, my_rsbuf, 14, length); //´æ´¢Ò£ĞÅÊı¾İ
+
+        my_buf1_to_buf2(MY_GPRS_Call_Time_data_buf, 0, my_rsbuf, 14 + length, 7); //´æ´¢Ê±±ê
+
+        my_rsbuf[13 + length + 7 + 1] = 0XFF;
+        my_rsbuf[13 + length + 7 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+
+    }
+    //²âÊÔÊ¹ÓÃ
+    else if(temp == 0) //Éú³É0Êı¾İÌåÊı¾İ°ü
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        //¿ØÖÆÓòÂë´¦Àí
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X02; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x92; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x00;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+    }
+
+
+}
+
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ;Éú³ÉÒ£²âÊı¾İ°ü
+
+//68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+*/
+void my_gprs_generate_101analog_data(uint8_t temp, uint8_t *my_rsbuf)
+{
+    uint8_t length = 0;
+
+
+    if(temp == 1) //Éú³ÉÊı¾İ°ü
+    {
+        length = MY_GPRS_Call_Analog_data_number;
+
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 3 + 10; //0X24 ¹²36¸öĞÅÏ¢Ìå£¬Ã¿¸öĞÅÏ¢Ìå3¸ö×Ö½Ú
+        my_rsbuf[2] = length * 3 + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8);
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄÒ£²âÊı¾İĞÅÏ¢£¬
+        my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8);;
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x40;
+
+        my_buf1_to_buf2(MY_GPRS_Call_Analog_data_buf, 0, my_rsbuf, 14, length * 3);
+
+
+        my_rsbuf[13 + length * 3 + 1] = 0XFF;
+        my_rsbuf[13 + length * 3 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+
+    }
+    else if(temp == 0) //Éú³É0Êı¾İÌåÊı¾İ°ü
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0xA4; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x40;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+    }
+
+
+
+}
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ;Éú³É»·¾³Êı¾İ°ü,tempÎª1Éú³ÉÓĞÊı¾İµÄÊı¾İ°ü£¬0Éú³É0Êı¾İµÄÊı¾İ°ü
+*/
+void my_gprs_generate_101MCU_data(uint8_t temp, uint8_t *my_rsbuf)
+{
+    uint8_t length = 0;
+
+    if(temp == 1) //Éú³ÉÊı¾İ°ü
+    {
+        length = 4;
+
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 2 + 10;
+        my_rsbuf[2] = length * 2 + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+
+        my_rsbuf[5] = DTU_ADDRESS;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8);
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8);;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x41;
+
+        my_buf1_to_buf2(MY_GPRS_MCU_RsBuf, 0, my_rsbuf, 14, length * 2);
+
+        my_rsbuf[13 + length * 2 + 1] = 0XFF;
+        my_rsbuf[13 + length * 2 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+
+    }
+    else if(temp == 0) //Éú³É0Êı¾İÌåÊı¾İ°ü
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x84; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x41;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+    }
+
+
+}
+
+
+
+
+
+
+
+/*
+²úÉú¿ØÖÆÓòÂë
+*/
+void my_GPRS_101_geneate_FCBword(uint8_t *my_rsbuf)
+{   uint8_t FCB = 0X20;
+
+    if(my_rsbuf[0] == 0x68)
+    {
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_rsbuf[4] = my_rsbuf[4] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_rsbuf[4] = my_rsbuf[4] | (FCB);
+    }
+    else if(my_rsbuf[0] == 0x10)
+    {
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_rsbuf[1] = my_rsbuf[1] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_rsbuf[1] = my_rsbuf[1] | (FCB);
+    }
+
+    //¼ÇÂ¼·¢ËÍ±ä»¯Ö¡
+    WDZ_GPRS_101FCB = WDZ_GPRS_101FCB ^ 0x20;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ£º½¨Á¢Á´Â·Á¬½Ó
+*/
+uint8_t WDZ_GPRS_101Transmit_Link_data(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x10\x8B\x01\x00\x8C\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_Linkquire_data;
+
+
+
+    //µÚ1²½£¬·¢ËÍÇëÇó½¨Á¢Á´Â·£¬ÊÕµ½Á´Â·ÏìÓ¦
+    WDZ_GPRS_101FCB = 0; //¶ÔFCBÇåÁã£¬²»·­×ª
+    my_status = WDZ_GPRS_101transmint_commd_wait_commd(1, my_txbuf, 1, my_rxbuf);
+
+
+    //µÚ2²½£¬·¢ËÍ¸´Î»Ô¶·½Á´Â·£¬ÊÕµ½¿Ï¶¨È·ÈÏ
+    if(my_status == 1)
+    {
+        wdz_GPRS_string_to_array(TX_GPRS_101_Linkrest_data, my_txbuf);
+        wdz_GPRS_string_to_array(RX_GPRS_101_OKdata, my_rxbuf);
+        WDZ_GPRS_101FCB = 0; //¶ÔFCBÇåÁã£¬²»·­×ª
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(1, my_txbuf, 1, my_rxbuf);
+        //10 C9 01 00 CA 16
+        //my_rxbuf[1]=0XC9;
+        //my_rxbuf[2]=DTU_ADDRESS&0X00FF;
+        //my_rxbuf[3]=(DTU_ADDRESS>>8)&0X00FF;
+        //wdz_GPRS_101char_check(my_rxbuf);
+
+        //my_status=WDZ_GPRS_101transmint_commd_wait_commd(1,my_txbuf,1,my_rxbuf);
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server LINK-1\r\n");
+
+    }
+    //µÚ3²½£¬ÊÕµ½ÇëÇóÁ´Â·
+    if(my_status == 1)
+    {   //10 C9 01 00 CA 16
+        my_status = WDZ_GPRS_101receive_testactive(0XC9, 0, 0, 600);
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server LINK-2\r\n");
+    }
+    //µÚ4²½£¬·¢ËÍÏìÓ¦Á´Â·×´Ì¬,ÊÕµ½¸´Î»Ô¶·½Á´Â·
+    if(my_status == 1)
+    {
+        wdz_GPRS_string_to_array(TX_GPRS_101_Linkconfirm_data, my_txbuf);
+        wdz_GPRS_string_to_array(RX_GPRS_101_Linkrest_data, my_rxbuf);
+        WDZ_GPRS_101FCB = 0; //¶ÔFCBÇåÁã£¬²»·­×ª
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(1, my_txbuf, 1, my_rxbuf);
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server LINK-3\r\n");
+    }
+    //µÚ5²½£¬·¢ËÍ¿Ï¶¨È·ÈÏ,ÊÕµ½³õÊ¼»¯½áÊø
+    if(my_status == 1)
+    {
+        wdz_GPRS_string_to_array(TX_GPRS_101_OKdata, my_txbuf);
+        wdz_GPRS_string_to_array(RX_GPRS_101_Linkover_data, my_rxbuf);
+        WDZ_GPRS_101FCB = 0; //¶ÔFCBÇåÁã£¬²»·­×ª
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(1, my_txbuf, 1, my_rxbuf);
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server LINK-4\r\n");
+    }
+    //µÚ6²½£¬·¢ËÍ¿Ï¶¨È·ÈÏ
+    if(my_status == 1)
+    {
+        WDZ_GPRS_101Transmit_OKdata();
+        USART_printf(&huart3, " Server LINK*\r\n");
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server LINK-5\r\n");
+    }
+
+
+    return my_status;
+}
+
+
+
+
+
+//-------------±»¶¯½ÓÊÕ³ÌĞò£¬Ğ£Ê±¡¢×ÜÕÙ----
+/*
+¹¦ÄÜ£ºĞ£Ê±¹¦ÄÜ
+*/
+uint8_t WDZ_GPRS_101Resiver_AdjustTime_data(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_rtcbuffer1[7] = {0};
+
+    uint8_t k = 0;
+    uint8_t my_rxbuf[256] = "\x10\x8B\x01\x00\x8C\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_Linkquire_data;
+
+    //µÚ1²½£º»ñµÃÑÓÊ±»ñµÃÃüÁî£¬´æ´¢ºÁÃëÖµ£¬·¢ËÍ¿Ï¶¨È·ÈÏ£¬²¢Ğ£Õı±¾µØºÁÃëÖµ,È¡×îĞÂºÁÃëÖµ£¬·¢ËÍÑÓÊ±»ñµÃÃüÁî(¼¤»îÈ·ÈÏ)
+    //68 0C 0C 68 53 01 00 6A 01 06 01 00 00 00 3D C3 C6 16
+    my_status = WDZ_GPRS_101receive_testactive2(0X53, 0X6A, 0X06, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+    if(my_status == 1)
+    {
+        //·¢ËÍ¿Ï¶¨È·ÈÏÖ¸Áî
+        WDZ_GPRS_101Transmit_OKdata();
+
+        //Ğ£Õı±¾µØÖµ£¬È¡Öµ£¬·¢ËÍ×îĞÂÊı¾İ
+        my_RTCtime_to_array(my_rtcbuffer1);//¶ÁÈ¡RTC
+        my_rtcbuffer1[0] = USART1_my_frame[14];
+        my_rtcbuffer1[1] = USART1_my_frame[15];
+        my_array_to_RTCtime(my_rtcbuffer1); //Ğ£Ê±
+        my_RTCtime_to_array(my_rtcbuffer1);//¶ÁÈ¡RTC
+
+
+        //·¢ËÍÑÓÊ±»ñµÃÃüÁî,ÊÕµ½¿Ï¶¨È·ÈÏ
+        //68 0C 0C 68 73 01 00 6A 01 07 01 00 00 00 5B C3 05 16
+
+        wdz_GPRS_string_to_array(TX_GPRS_101_delaytime_data, my_txbuf);
+        my_txbuf[14] = my_rtcbuffer1[0];
+        my_txbuf[15] = my_rtcbuffer1[1];
+        wdz_GPRS_string_to_array(RX_GPRS_101_OKdata, my_rxbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Time-1\r\n");
+    }
+    //µÚ2²½£¬ÊÕµ½ÑÓÊ±»ñµÃÃüÁî
+    if(my_status == 1)
+    {   //68 0C 0C 68 73 01 00 6A 01 03 01 00 00 00 C4 01 A8 16
+        my_status = WDZ_GPRS_101receive_testactive(0X73, 0x6A, 0X03, 300);
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Time-2\r\n");
+    }
+    //µÚ3²½£¬·¢ËÍ¿Ï¶¨È·ÈÏ,	ÊÕµ½Ê±ÖÓÍ¬²½¼¤»î
+    if(my_status == 1)
+    {
+        WDZ_GPRS_101Transmit_OKdata();//·¢ËÍ¿Ï¶¨È·ÈÏ
+
+        //ÊÕµ½Ê±ÖÓÍ¬²½¼¤»î 68 11 11 68 53 01 00 67 01 06 01 00 00 00 8B D4 0B 0F 05 07 0E 5616
+
+        my_status = WDZ_GPRS_101receive_testactive(0X53, 0x67, 0X06, 300);
+
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Time-3\r\n");
+    }
+
+    //µÚ4²½£¬·¢ËÍ¿Ï¶¨È·ÈÏ,	Ê±ÖÓÍ¬²½ÃüÁî(¼¤»îÈ·ÈÏ),½ÓÊÕ¿Ï¶¨È·ÈÏ
+    if(my_status == 1)
+    {
+        WDZ_GPRS_101Transmit_OKdata();//·¢ËÍ¿Ï¶¨È·ÈÏ
+
+        //ÊÕµ½Ê±ÖÓÍ¬²½¼¤»î 68 11 11 68 53 01 00 67 01 06 01 00   00 00     8B D4 0B 0F 05 07 0E    56 16
+
+        for(k = 0; k < 7; k++)
+        {
+            my_rtcbuffer1[k] = USART1_my_frame[k + 14];
+        }
+        my_array_to_RTCtime(my_rtcbuffer1); //Ğ£Ê±
+        my_RTC_TO_EEPROM(my_rtcbuffer1, 0); //´æÈëEEPROMÖĞ
+
+        wdz_GPRS_string_to_array(TX_GPRS_101_time_synchronization_data, my_txbuf); //Éú³É·¢ËÍÊı¾İ°ü
+        my_RTCtime_to_array(my_rtcbuffer1); //¶ÁÈ¡RTC
+        for(k = 0; k < 7; k++)
+        {
+            my_txbuf[k + 14] = my_rtcbuffer1[k]; //USART1_my_frame
+        }
+
+        wdz_GPRS_string_to_array(RX_GPRS_101_OKdata, my_rxbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Time-4\r\n");
+    }
+
+    if(my_status == 1)
+    {
+        USART_printf(&huart3, " Server Time*\r\n");
+    }
+
+    if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Time-5\r\n");
+    }
+
+    return my_status;
+}
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ£º½ÓÊÕ×ÜÕÙÖ¸Áî£¬½øĞĞÏìÓ¦£¬·¢ËÍÊı¾İ
+*/
+uint8_t WDZ_GPRS_101Resiver_Call_Data(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = {0};
+
+
+
+    //µÚ1²½£º½ÓÊÕµ½×ÜÕÙÖ¸Áî	 Ö÷Õ¾·¢ËÍ£º68 0B 0B 68 73 01 00 64 01 06 01 00 00 00 14 F4 16
+    my_status = WDZ_GPRS_101receive_testactive2(0X73, 0X64, 0X06, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    if(my_status == 1)
+    {
+        //·¢ËÍ¿Ï¶¨È·ÈÏÖ¸Áî
+        WDZ_GPRS_101Transmit_OKdata();
+
+        WDZ_101transmit_Calldata(2);//433Ä£¿é×ÜÕÙ
+        WDZ_MCUtransmit_Calldata();		//MCUÄ£¿é×ÜÕÙ
+
+
+        //Éú³É·¢ËÍÊı¾İ°ü£¬·¢ËÍÊı¾İ£¬ÏÈ·¢Ò£ĞÅ¡¢ÔÙ·¢Ò£²â¡¢×îºó·¢»·¾³
+        //Ò£ĞÅÊı¾İ°ü 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
+
+        my_gprs_generate_101single_data(1, my_txbuf);
+        my_at_senddata(my_txbuf);
+
+        //Ò£²âÊı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101analog_data(1, my_txbuf);
+        my_at_senddata(my_txbuf);
+        //»·¾³Êı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101MCU_data(1, my_txbuf);
+        my_at_senddata(my_txbuf);
+
+        //¼¤»îÖÕÖ¹;´ÓÕ¾·¢ËÍ£º68 12 12 68 73 01 00 09 84 14 01 00 00 41 68 05 A1 00 00 6C 00 2D FE 16,ÊÕµ½¿Ï¶¨È·ÈÏ
+        wdz_GPRS_string_to_array(TX_GPRS_101_Calldata_over_data, my_txbuf);
+        wdz_GPRS_string_to_array(RX_GPRS_101_OKdata, my_rxbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+        USART_printf(&huart3, " Server Call*\r\n");
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Call-1\r\n");
+    }
+
+
+
+    return my_status;
+}
+
+
+
+/*
+¹¦ÄÜ£º½ÓÊÕ½ø³Ì¸´Î»£¬ÖØÆôMCU
+*/
+
+uint8_t WDZ_GPRS_101Resiver_ResetMCU_Data(void)
+{
+    uint8_t my_status = 0;
+//	uint8_t k=0;
+    uint8_t my_rxbuf[256] = "\x10\x8B\x01\x00\x8C\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_Linkquire_data;
+
+    //µÚ1²½£º½ÓÊÕµ½×ÜÕÙÖ¸Áî	 Ö÷Õ¾·¢ËÍ£º68 0B 0B 68 73 01 00 69 01 06 01 00 00 00 01 E6 16
+    my_status = WDZ_GPRS_101receive_testactive2(0X73, 0X69, 0X06, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    if(my_status == 1)
+    {
+        //·¢ËÍ¿Ï¶¨È·ÈÏÖ¸Áî
+        WDZ_GPRS_101Transmit_OKdata();
+
+        //¸´Î»½ø³ÌÃüÁî(¼¤»îÈ·ÈÏ)£º´ÓÕ¾·¢ 68 0B 0B 68 53 01 00 69 01 07 01 00 00 00 01 C7 16,ÊÕµ½¿Ï¶¨È·ÈÏ
+        wdz_GPRS_string_to_array(TX_GPRS_101_ResetActive_data, my_txbuf);
+        wdz_GPRS_string_to_array(RX_GPRS_101_OKdata, my_rxbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+        USART_printf(&huart3, " Server reset*\r\n");
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server reset-1\r\n");
+    }
+    //µÚ2²½£¬½øĞĞÏµÍ³ÖØÆô£¬Í¨¹ı¹Ø±ÕÓ²¼ş¿´ÃÅ¿Ú
+    if(my_status == 1)
+    {
+        my_reset_mcu(); //ÈíÖØÆô
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server reset-2\r\n");
+    }
+
+
+    return my_status;
+}
+
+/*
+¹¦ÄÜ;Éú³ÉÎŞÊ±±êµÄ±¨¾¯Êı¾İÖ¡£¬temp=1Éú³ÉÓĞĞ§µÄÊı¾İ°ü£¬0Éú³ÉÊı¾İÎ»0µÄ¿ÕÊı¾İ°ü
+
+68 0B 0B 68 53 01 00 01 01 03 01 00 05 00 01 60 16
+*/
+void my_gprs_generate_101Alarm_Notime_data(uint8_t temp, uint8_t *my_rsbuf) //Éú³É£¬ÎŞÊ±±êµÄ±¨¾¯Êı¾İ°ü
+{
+    uint8_t length = 0;
+    //uint8_t k=0;
+    length = MY_433_ALarmdata_number; //ĞÅÏ¢Ìå¸öÊı
+    if(temp == 1)
+    {
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 3 + 8;
+        my_rsbuf[2] = length * 3 + 8;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X01; //ÀàĞÍ±êÊ¶£¬²»´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x03; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_buf1_to_buf2(MY_433_Alarmdata_NOtimeBuf, 0, my_rsbuf, 12, length * 3); //±¨¾¯Êı¾İ±£´æÔÚMY_433_Alarmdata_NOtimeBufÊı×éÖĞ
+
+        my_rsbuf[11 + length * 3 + 1] = 0XFF;
+        my_rsbuf[11 + length * 3 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+    }
+    else if(temp == 0)
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X01; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x00; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x03; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x00;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+    }
+
+}
+
+/*
+¹¦ÄÜ;Éú³ÉÓĞÊ±±êµÄ±¨¾¯Êı¾İÖ¡£¬temp=1Éú³ÉÓĞĞ§µÄÊı¾İ°ü£¬0Éú³ÉÊı¾İÎ»0µÄ¿ÕÊı¾İ°ü
+68 1C 1C 68 73 01 00 1E 02 03 01 00 08 00 01 20 BA 16 0F 05 07 0D 05 00 01 49 BC 16 0F 05 07 0D 02 16
+*/
+void my_gprs_generate_101Alarm_Time_data(uint8_t temp, uint8_t *my_rsbuf) // Éú³É£¬ÓĞÊ±±êµÄ±¨¾¯Êı¾İ°ü
+{
+    uint8_t length = 0;
+    //uint8_t k=0;
+    length = MY_433_ALarmdata_number;
+    if(temp == 1)
+    {
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 10 + 8;
+        my_rsbuf[2] = length * 10 + 8;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X1E; //ÀàĞÍ±êÊ¶£¬²»´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x03; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_buf1_to_buf2(MY_433_Alarmdata_TimeBuf, 0, my_rsbuf, 12, length * 10);
+
+        my_rsbuf[11 + length * 10 + 1] = 0XFF;
+        my_rsbuf[11 + length * 10 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+    }
+    else if(temp == 0)
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X1E; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x00; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x03; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x00;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+    }
+
+
+
+}
+
+
+
+/*
+¹¦ÄÜ£º´ÓÕ¾Ö÷¶¯·¢ËÍ±¨¾¯Êı¾İ£¬ÏÈ·¢ËÍÎŞÊ±±êÊı¾İ£¬ºó·¢ËÍ´øÊ±±êÊı¾İ
+*/
+uint8_t WDZ_GPRS_101Transmit_Alarm_Data(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = {0};
+
+    my_gprs_generate_101Alarm_Notime_data(1, my_txbuf);
+
+    my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+    if(my_status == 1)
+    {
+        my_gprs_generate_101Alarm_Time_data(1, my_txbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+        USART_printf(&huart3, " Server Alarm*\r\n");
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Alarm-1\r\n");
+    }
+
+    return my_status;
+}
+
+
+
+
+
+/*
+¹¦ÄÜ£º±»¶¯½ÓÊÕ Ò£²â ²ÎÊı
+*/
+uint8_t WDZ_GPRS_101Resiver_Adjustvalue_data(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x68\x0C\x0C\x68\x00\x03\x00\x30\x01\x07\x03\x00\x02\x50\x0C\x00\x0E\x16";
+    uint8_t my_databuf[256] = {0};
+    uint8_t length = 0;
+    uint8_t k = 0;
+    //uint8_t my_txbuf[256]=TX_GPRS_101_Linkquire_data;
+    my_status = WDZ_GPRS_101receive_testactive2(0X73, 0X30, 0X06, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    if(my_status == 1)
+    {
+        length = USART1_my_frame[1];
+        for(k = 0; k < length - 8; k++)
+        {
+            my_databuf[k] = USART1_my_frame[k + 12];
+        }
+        //µ÷ÓÃº¯Êı£¬½øĞĞÏìÓ¦µÄ²ÎÊıÉèÖÃ£¬my_databufÊı×éÖĞ0,1Á½¸ö×Ö½Ú´æ·ÅĞÅÏ¢ÌåµØÖ·£¬ºóÃæÎªÊı¾İ£¬ÀûÓÃµØÖ·À´ÅĞ¶Ï¶ÔÓ¦µÄ¹¦ÄÜ£¬½øĞĞÏìÓ¦µÄ´¦Àí
+        WDZ_GPRS_Adjust_value(my_databuf);  //Éè¼ÆÏµÍ³²ÎÊı*******
+
+        my_rxbuf[4] = 0x00;
+        my_rxbuf[9] = 0x07;
+        my_rxbuf[5] = DTU_ADDRESS & 0x00ff;
+        my_rxbuf[6] = (DTU_ADDRESS >> 8) & 0x00ff;
+
+        my_rxbuf[10] = DTU_ADDRESS & 0x00ff;
+        my_rxbuf[11] = (DTU_ADDRESS >> 8) & 0x00ff;
+
+
+        for(k = 0; k < length - 8; k++)
+        {
+            //my_databuf[k]=USART1_my_frame[k+12];
+            my_rxbuf[12 + k] = my_databuf[k];
+        }
+
+        //my_rxbuf[12]=my_databuf[0];
+        //my_rxbuf[13]=my_databuf[1];
+        //my_rxbuf[14]=my_databuf[2];
+        //my_rxbuf[15]=my_databuf[3];
+
+
+        wdz_GPRS_101check_generate(my_rxbuf);
+        my_at_senddata(my_rxbuf);
+
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Adjustdata-1\r\n");
+    }
+
+
+
+    return my_status;
+}
+
+/*
+¹¦ÄÜ£º¶ÔÊÕµ½µÄ²ÎÊıÉèÖÃÃüÁî½øĞĞÏìÓ¦£¬ÉèÖÃÏà¹ØµÄ²ÎÊı£¬Ö÷Òª°üÀ¨DTUµØÖ·5001£¬ĞÄÌø°üÊ±¼ä5002£¬ÖÜÆÚÊı¾İ·¢ËÍÊ±¼ä5003£¬ServerµØÖ·6×Ö½Ú5004£¬
+      Ôö¼ÓÊÖ»úºÅ8×Ö½Ú5005£¬É¾³ıÊÖ»úºÅÂë5006
+*/
+extern uint16_t Transmint_to_GPRS_hearttime;
+extern uint16_t Transmint_to_GPRS_Cycledata;
+
+extern uint8_t MY_IP[4]; //222.222.118.3
+extern uint16_t MY_PORT;  //8080  16Î»Êı¾İ
+
+void WDZ_GPRS_Adjust_value(uint8_t *rsbuf)
+{
+    uint16_t my_address = 0;
+   // uint8_t k = 0;
+    uint16_t my_temp_val16 = 0;
+    //uint8_t my_buf[100] = {0};
+    //uint8_t my_phonebuf[16] = {0};
+    //uint8_t my_firstaddress = 0;
+    uint8_t my_status = 0;
+    //uint8_t my_temp = 0;
+    uint8_t time_buf[7] = {0};
+    uint16_t my_temp_dtu = 0;
+    uint8_t my_temp_rxbuf[256] = RX_GPRS_101_OKdata;
+    uint8_t my_temp_txbuf[256] = TX_GPRS_101_Chaxun_data;
+
+
+
+
+    my_address = rsbuf[1];
+    my_address = ((my_address << 8) & 0xff00) + rsbuf[0];
+    //*******DTUµØÖ·
+    if(my_address == 0x5001)
+    {
+        my_temp_dtu = DTU_ADDRESS;
+        my_temp_val16 = rsbuf[3];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[2];
+        DTU_ADDRESS = my_temp_val16;
+        AT25_WriteByte(rsbuf[2], EEPROM_DTU_Address); //°ÑĞÂµÄDTUµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[3], EEPROM_DTU_Address + 1);
+
+
+        //·¢ËÍDTUµØÖ·
+        my_temp_txbuf[5] = my_temp_dtu & 0xff;
+        my_temp_txbuf[6] = (my_temp_dtu >> 8) & 0xff;
+        my_temp_txbuf[10] = my_temp_dtu & 0xff;
+        my_temp_txbuf[11] = (my_temp_dtu >> 8) & 0xff;
+
+        my_temp_txbuf[12] = 0x01;
+        my_temp_txbuf[13] = 0x50;
+        my_temp_txbuf[14] = DTU_ADDRESS & 0xff;
+        my_temp_txbuf[15] = (DTU_ADDRESS >> 8) & 0xff;
+        wdz_GPRS_101check_generate(my_temp_txbuf);
+
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd2(2, my_temp_txbuf, 2, my_temp_rxbuf, my_temp_dtu);
+
+        Delay_ms(3);
+        my_reset_mcu();//ÖØĞÂÆô¶¯MCU
+
+
+
+    }
+    //******ĞÄÌø°üÊ±¼ä
+    else if(my_address == 0x5002)
+    {
+        my_temp_val16 = rsbuf[3];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[2];
+        Transmint_to_GPRS_hearttime = my_temp_val16;
+        MY_M_speed_heart = my_temp_val16; //20160621
+
+        AT25_WriteByte(rsbuf[2], EEPROM_Hearttime_Address); //°ÑĞÂµÄĞÄÌø°üÊ±¼äµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[3], EEPROM_Hearttime_Address + 1);
+    }
+    //******ÖÜÆÚÊı¾İ·¢ËÍÊ±¼ä
+    else if(my_address == 0x5003)
+    {
+        my_temp_val16 = rsbuf[3];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[2];
+        Transmint_to_GPRS_Cycledata = my_temp_val16;
+        MY_M_speed_cyc = my_temp_val16; //20160621
+
+        AT25_WriteByte(rsbuf[2], EEPROM_Cycetime_Address); //°ÑĞÂµÄÖÜÆÚÊı¾İÊ±¼äµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[3], EEPROM_Cycetime_Address + 1);
+
+    }
+
+    //20160621****·§ÖµÉÏÏß ÏÂÏß
+    else if(my_address == 0x5010)
+    {
+        my_temp_val16 = rsbuf[3];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[2];
+        MY_Speed_H_Gate = my_temp_val16 / 65535 * 15.0;
+        AT25_WriteByte(rsbuf[2], EEPROM_SPEED_Gate_H_Address); //°ÑĞÂµÄÖÜÆÚÊı¾İÊ±¼äµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[3], EEPROM_SPEED_Gate_H_Address + 1);
+
+        
+
+
+    }
+    else if(my_address == 0x5011)
+    {
+        my_temp_val16 = rsbuf[3];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[2];
+        MY_H_speed_cyc = my_temp_val16;
+        AT25_WriteByte(rsbuf[2], EEPROM_SPEED_H_Cyc_Address); //°ÑĞÂµÄÖÜÆÚÊı¾İÊ±¼äµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[3], EEPROM_SPEED_H_Cyc_Address + 1);
+
+        my_temp_val16 = rsbuf[5];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[4];
+        MY_H_speed_heart = my_temp_val16;
+        //AT25_WriteByte(rsbuf[4], EEPROM_SPEED_H_Heart_Address); //°ÑĞÂµÄÖÜÆÚÊı¾İÊ±¼äµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        //AT25_WriteByte(rsbuf[5], EEPROM_SPEED_H_Heart_Address + 1);
+    }
+
+    else if(my_address == 0x5012)
+    {
+        my_temp_val16 = rsbuf[3];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[2];
+        MY_L_speed_cyc = my_temp_val16;
+        AT25_WriteByte(rsbuf[2], EEPROM_SPEED_H_Cyc_Address); //°ÑĞÂµÄÖÜÆÚÊı¾İÊ±¼äµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[3], EEPROM_SPEED_H_Cyc_Address + 1);
+
+        my_temp_val16 = rsbuf[5];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[4];
+        MY_L_speed_heart = my_temp_val16;
+        AT25_WriteByte(rsbuf[4], EEPROM_SPEED_L_Cyc_Address); //°ÑĞÂµÄÖÜÆÚÊı¾İÊ±¼äµØÖ·Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[5], EEPROM_SPEED_L_Cyc_Address + 1);
+    }
+
+
+
+
+    //********ServerµØÖ·
+    else if(my_address == 0x5004)
+    {
+        MY_IP[0] = rsbuf[2];
+        MY_IP[1] = rsbuf[3];
+        MY_IP[2] = rsbuf[4];
+        MY_IP[3] = rsbuf[5];
+
+        my_temp_val16 = rsbuf[7];
+        my_temp_val16 = ((my_temp_val16 << 8) & 0xff00) + rsbuf[6];
+        MY_PORT = my_temp_val16;
+
+        SPI_EE_BufferWrite2(MY_IP, EEPROM_IP_Address, 4); //°ÑĞÂµÄ IP¼° ¶Ë¿ÚºÅ Ğ´Èëµ½EEPROMÖĞ
+        AT25_WriteByte(rsbuf[6], EEPROM_IPPort_Address);
+        AT25_WriteByte(rsbuf[7], EEPROM_IPPort_Address + 1);
+
+        //·µ»ØÈ·ÈÏÖ¸Áî
+        my_temp_txbuf[1] = 0X0C + 4;
+        my_temp_txbuf[2] = 0X0C + 4;
+
+        my_temp_txbuf[5] = DTU_ADDRESS & 0xff;
+        my_temp_txbuf[6] = (DTU_ADDRESS >> 8) & 0xff;
+        my_temp_txbuf[10] = DTU_ADDRESS & 0xff;
+        my_temp_txbuf[11] = (DTU_ADDRESS >> 8) & 0xff;
+
+        my_temp_txbuf[12] = 0x04;
+        my_temp_txbuf[13] = 0x50;
+
+        my_temp_txbuf[14] = MY_IP[0];
+        my_temp_txbuf[15] = MY_IP[1];
+        my_temp_txbuf[16] = MY_IP[2];
+        my_temp_txbuf[17] = MY_IP[3];
+
+        my_temp_txbuf[18] = MY_PORT & 0x00ff;
+        my_temp_txbuf[19] = (MY_PORT >> 8) & 0x00ff;
+
+        my_temp_txbuf[20] = 0X00;
+        my_temp_txbuf[21] = 0X16;
+
+        wdz_GPRS_101check_generate(my_temp_txbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_temp_txbuf, 2, my_temp_rxbuf);
+
+        Delay_ms(3);
+        my_reset_mcu();//ÖØĞÂÆô¶¯MCU
+
+    }
+    //*****²éÑ¯Ö¸Áî£¬·µ»ØDTUµØÖ·£¬ĞÄÌø°ü¡¢ÖÜÆÚÊ±¼ä¡¢IP¡¢PORT¡¢time
+
+    else if(my_address == 0x5020)
+    {   my_status = 0;
+        WDZ_GPRS_101Transmit_OKdata();
+        //·¢ËÍDTUµØÖ·
+        my_temp_txbuf[5] = DTU_ADDRESS & 0xff;
+        my_temp_txbuf[6] = (DTU_ADDRESS >> 8) & 0xff;
+        my_temp_txbuf[10] = DTU_ADDRESS & 0xff;
+        my_temp_txbuf[11] = (DTU_ADDRESS >> 8) & 0xff;
+
+        my_temp_txbuf[12] = 0x01;
+        my_temp_txbuf[13] = 0x50;
+        my_temp_txbuf[14] = DTU_ADDRESS & 0xff;
+        my_temp_txbuf[15] = (DTU_ADDRESS >> 8) & 0xff;
+        wdz_GPRS_101check_generate(my_temp_txbuf);
+
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_temp_txbuf, 2, my_temp_rxbuf);
+        //·¢ËÍĞÄÌøÊ±¼ä
+        if(my_status == 1)
+        {
+            my_temp_txbuf[12] = 0x02;
+            my_temp_txbuf[13] = 0x50;
+            my_temp_txbuf[14] = Transmint_to_GPRS_hearttime & 0xff;
+            my_temp_txbuf[15] = (Transmint_to_GPRS_hearttime >> 8) & 0xff;
+            wdz_GPRS_101check_generate(my_temp_txbuf);
+            my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_temp_txbuf, 2, my_temp_rxbuf);
+        }
+        else if(my_status == 0)
+        {
+            USART_printf(&huart3, " chaxun error-1!\r\n");
+        }
+        //·¢ËÍÖÜÆÚÊ±¼ä
+        if(my_status == 1)
+        {
+            my_temp_txbuf[12] = 0x03;
+            my_temp_txbuf[13] = 0x50;
+            my_temp_txbuf[14] = Transmint_to_GPRS_Cycledata & 0xff;
+            my_temp_txbuf[15] = (Transmint_to_GPRS_Cycledata >> 8) & 0xff;
+            wdz_GPRS_101check_generate(my_temp_txbuf);
+            my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_temp_txbuf, 2, my_temp_rxbuf);
+        }
+        else if(my_status == 0)
+        {
+            USART_printf(&huart3, " chaxun error-2!\r\n");
+        }
+        //IPµØÖ·¼°PORT
+        if(my_status == 1)
+        {
+            my_temp_txbuf[1] = 0X0C + 4;
+            my_temp_txbuf[2] = 0X0C + 4;
+            my_temp_txbuf[12] = 0x04;
+            my_temp_txbuf[13] = 0x50;
+
+            my_temp_txbuf[14] = MY_IP[0];
+            my_temp_txbuf[15] = MY_IP[1];
+            my_temp_txbuf[16] = MY_IP[2];
+            my_temp_txbuf[17] = MY_IP[3];
+
+            my_temp_txbuf[18] = MY_PORT & 0x00ff;
+            my_temp_txbuf[19] = (MY_PORT >> 8) & 0x00ff;
+
+            my_temp_txbuf[20] = 0X00;
+            my_temp_txbuf[21] = 0X16;
+
+            wdz_GPRS_101check_generate(my_temp_txbuf);
+            my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_temp_txbuf, 2, my_temp_rxbuf);
+        }
+        else if(my_status == 0)
+        {
+            USART_printf(&huart3, " chaxun error-3!\r\n");
+        }
+        //DTUµÄÊ±¼ä
+        if(my_status == 1)
+        {
+            my_temp_txbuf[1] = 0X0C + 5;
+            my_temp_txbuf[2] = 0X0C + 5;
+            my_temp_txbuf[12] = 0x19;
+            my_temp_txbuf[13] = 0x50;
+
+            my_RTCtime_to_array(time_buf);  //¶ÁÈ¡RTCÊ±¼ä
+            my_temp_txbuf[14] = time_buf[0];
+            my_temp_txbuf[15] = time_buf[1];
+            my_temp_txbuf[16] = time_buf[2];
+            my_temp_txbuf[17] = time_buf[3];
+            my_temp_txbuf[18] = time_buf[4];
+            my_temp_txbuf[19] = time_buf[5];
+            my_temp_txbuf[20] = time_buf[6];
+
+            my_temp_txbuf[21] = 0X00;
+            my_temp_txbuf[22] = 0X16;
+
+            wdz_GPRS_101check_generate(my_temp_txbuf);
+            my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_temp_txbuf, 2, my_temp_rxbuf);
+        }
+        else if(my_status == 0)
+        {
+            USART_printf(&huart3, " chaxun error-4!\r\n");
+        }
+
+    }
+
+
+
+
+}
+
+/*
+¹¦ÄÜ£ºµç»°ºÅÂë¼ì²é£¬µç»°ºÅÂë²¾ÖĞÊÇ·ñº¬ÓĞÕâ¸öµç»°ºÅÂë
+*/
+uint8_t WDZ_GPRS_Phonenumber_check(uint8_t *phone_source_buf1, uint8_t *phone_getnew_buf2)
+{
+    uint8_t my_status = 0;
+    uint8_t k = 0;
+    uint8_t mm = 0;
+    uint8_t my_firstaddress = 0;
+
+
+    for(k = 0; k < 100; k++)
+    {
+        if(phone_source_buf1[k] == phone_getnew_buf2[mm])
+        {
+            if(phone_getnew_buf2[mm] == 0x00)
+            {
+                my_firstaddress = k;
+                break;
+            }
+            mm++;
+
+
+        }
+        else mm = 0;
+
+    }
+
+    if(my_firstaddress > 0) my_status = (my_firstaddress / 16) * 16;
+    else my_status = 0;
+
+
+
+    return my_status;
+
+}
+
+/*
+¹¦ÄÜ£º±»¶¯½ÓÊÕµ½µÄ101Ö¸Áî½øĞĞ·ÖÎö£¬²úÉúÏàÓ¦µÄ¶¯×÷
+*/
+void WDZ_GPRS_101Resiver_Analyse(void)
+{
+    uint8_t my_status = 0;
+    my_usart_GPRS_101frame(1);  //È¡Ò»¸öÍêÕûµÄ101Ö¡
+    if(USART1_FRAME_status > 0)
+    {
+        my_status = WDZ_GPRS_101Resiver_AdjustTimeSimple_data(); //1  ²âÊÔ,¼òµ¥Ğ£Ê±
+
+        if(my_status == 0) my_status = WDZ_GPRS_101Resiver_ResetMCU_Data(); //2  ²âÊÔ£¬½ø³Ì¸´Î»£¬ÖØÆôÖ÷MCU
+
+        if(my_status == 0) my_status = WDZ_GPRS_101Resiver_Adjustvalue_data(); //3 µ÷ÊÔÍ¨¹ı,µ÷ÊÔDTU²ÎÊı£¬ĞÄÌø¡¢ÖÜÆÚ¡¢IP£¬port
+
+        if(my_status == 0) my_status == WDZ_GPRS_101Resiver_AdjustTime_data(); //4
+
+        if(my_status == 0) my_status = WDZ_GPRS_101Resiver_CallHistory_data(); //5
+
+        if(my_status == 0) my_status = WDZ_GPRS_101Resiver_Call_Data(); //6  Í¨¹ı ×ÜÕÙÊı¾İ
+
+        if(my_status == 0) my_status = WDZ_GPRS_101Resiver_ControlMonitor_Data(); //7Í¨¹ı£¬·­ÅÆ
+
+        if(my_status == 0) my_status = WDZ_GPRS_101Resiver_Cycle_analog_time_Data(); //8 Í¨¹ı£¬ÉèÖÃÖ¸Ê¾Æ÷Ê±¼ä
+
+        //9ÉèÖÃÃÅÏŞ·§Öµ£¬ÉÏÏß
+        //10ÉèÖÃÃÅÏŞ·§Öµ£¬ÏÂÏß
+        //11ÉèÖÃ¸ßËÙÖÜÆÚÖµ
+        //12ÉèÖÃ¸ßËÙĞÄÌøÖµ
+        //13ÉèÖÃµÍËÙÖÜÆÚÖµ
+        //14ÉèÖÃµÍËÙĞÄÌøÖµ
+
+
+
+
+    }
+    USART1_FRAME_status = 0;
+}
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ£º×ÜÕÙÀúÊ·Êı¾İ£¬°ÑÒÔÇ°Ã»ÓĞ·¢ËÍ³öÈ¥µÄÊı¾İ²¹·¢³öÈ¥
+Ô­Àí£º²éÑ¯EEPROMÖĞÒ£ĞÅºÍÒ£²â±í£¬¶Ô±íÖĞÊı¾İÖ¡µÄ·¢ËÍ×´Ì¬Ö¡½øĞĞ·ÖÎö£¬Ã»ÓĞ·¢ËÍµÄÊı¾İ¾Í·¢ËÍ³öÈ¥£¬È»ºóĞŞ¸Ä×´Ì¬Ö¡¡£ÏÈ·¢ÖÜÆÚÒ£ĞÅ¡¢Ò£²â¡¢»·¾³£¬ÔÙ·¢±¨¾¯Êı¾İ¡£
+			ËùÓĞÊı¾İ¶¼·¢ËÍÍêºó£¬ÔÚ·¢ËÍ×ÜÕÙ½áÊøÖ¡¡£
+			**±È½ÏÂé·³µÄÒ»¸öÖ¡,Ê¹ÓÃĞ§¹ûÓĞ´ı¼ìÑé*****
+*/
+uint8_t WDZ_GPRS_101Resiver_CallHistory_data() //
+{
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = {0};
+    uint8_t my_buf[256] = {0};
+//	uint8_t my_getdata_status=1;
+    uint32_t n = 0;
+    uint32_t first_address = EEPROM_Cycle_Table2_StartAddress;
+    uint32_t second_address = EEPROM_Cycle_Table2_EndAddress + 1;
+    uint8_t single_data_number = 0;
+    uint8_t cycle_data_number = 0;
+    uint8_t alarm_data_number = 0;
+    uint8_t rd_status = 0;
+    uint8_t length = 0;
+    uint32_t my_count = 0;
+
+    //µÚ1²½£¬×ÜÕÙÀúÊ·Êı¾İ²éÑ¯ÃüÁî£¬68 0B 0B 68 53 01 00 64 01 2C 01 00 00 00 14 FF 16
+    my_status = WDZ_GPRS_101receive_testactive2(0X73, 0X64, 0X2C, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    if(my_status == 1)
+    {
+        //·¢ËÍ¿Ï¶¨È·ÈÏÖ¸Áî
+        WDZ_GPRS_101Transmit_OKdata();
+        //²é±í ·¢ËÍÖÜÆÚÊı¾İ£¬Ã¿·¢ËÍÒ»ÌõÖÜÆÚÊı¾İ£¬µÈ´ıÒ»¸öÈ·ÈÏOKÖ¡
+        for(n = first_address; n < second_address;)
+        {
+            SPI_EE_BufferRead2(my_buf, n, 3); //¶ÁÈ¡Ç°Ò»Ö¡Êı¾İµÄÇ°3¸ö×Ö·û
+            rd_status = my_buf[0];
+            single_data_number = my_buf[1];
+            cycle_data_number = my_buf[2];
+            length = 3 + 8 + single_data_number + cycle_data_number * 3 + 7;
+            if(rd_status == 2) //´ËÖ¡Êı¾İÃ»ÓĞ·¢ËÍ³öÈ¥,½øĞĞ·¢ËÍ´¦Àí
+            {
+                SPI_EE_BufferRead2(my_buf, n, length);
+                my_gprs_generate_101single_history_data(1, my_buf, my_txbuf); //Éú³ÉÒ»Ö¡Ò£ĞÅÊı¾İ
+                my_at_senddata(my_txbuf);
+
+                my_gprs_generate_101analog_history_data(1, my_buf, my_txbuf); //Éú³ÉÒ»Ö¡Ò£²âÊı¾İ
+                my_at_senddata(my_txbuf);
+
+                my_gprs_generate_101MCU_history_data(1, my_buf, my_txbuf); //Éú³ÉÒ»Ö¡»·¾³Êı¾İ
+                my_at_senddata(my_txbuf);
+
+                my_status = WDZ_GPRS_101receive_testactive(0x80, 00, 00, 300); //È·ÈÏÊÕµ½OKÖ¡
+
+                if(my_status == 1)
+                {
+                    AT25_WriteByte(0x01, n);
+                    my_count++;  //·¢ËÍ³É¹¦Ò»¸ö,¼ÆÊı+1
+                    n = n + length; //´ËÖ¡Êı¾İ´¦ÀíÍêÁË£¬Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+                }
+                else if(my_status == 0)
+                {
+                    break;
+                }
+            }
+            else if(rd_status == 1) //´ËÖ¡Êı¾İÒÑ¾­·¢ËÍÍê³ÉÁË£¬Ìøµ½ÏÂÒ»Ö¡Êı¾İ½øĞĞ¼ì²é
+            {
+                n = n + length; //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+            }
+            else if(rd_status == 0) //±í¸ñµÄËùÓĞÊı¾İ¼ì²éÍê±ÏÁË£¬¿ÉÒÔÍË³öÁË
+            {
+                break;
+            }
+
+
+
+        }
+
+
+
+    }
+    if(my_status == 1) //²éÑ¯±¨¾¯Êı¾İ±í£¬·¢ËÍÎ´·¢ËÍ³É¹¦µÄ±¨¾¯Êı¾İÖ¡
+    {
+        first_address = EEPROM_Alarm_Table1_StartAddress;
+        second_address = EEPROM_Alarm_Table1_EndAddress;
+
+        //²éÑ¯Table1 £¬»ñµÃ±¨¾¯Êı¾İ
+        //²é±í ·¢ËÍÖÜÆÚÊı¾İ£¬Ã¿·¢ËÍÒ»ÌõÖÜÆÚÊı¾İ£¬µÈ´ıÒ»¸öÈ·ÈÏOKÖ¡
+        for(n = first_address; n < second_address;)
+        {
+            SPI_EE_BufferRead2(my_buf, n, 3); //¶ÁÈ¡Ç°Ò»Ö¡Êı¾İµÄÇ°3¸ö×Ö·û
+            rd_status = my_buf[0];
+            alarm_data_number = my_buf[1];  //´ËÖ¡Êı¾İÖĞº¬ÓĞµÄĞÅÏ¢Ìå¸öÊı
+            length = 2 + alarm_data_number * 10; //Ëã³ö´ËÖ¡Êı¾İµÄ×Ü³¤¶È
+            if(rd_status == 2) //´ËÖ¡Êı¾İÃ»ÓĞ·¢ËÍ³öÈ¥,½øĞĞ·¢ËÍ´¦Àí
+            {
+                SPI_EE_BufferRead2(my_buf, n, length);
+                my_gprs_generate_101Alarm_Time_history_data(1, my_buf, my_txbuf); //Éú³ÉÒ»Ö¡Ò£ĞÅÊı¾İ
+                my_at_senddata(my_txbuf);
+
+                my_status = WDZ_GPRS_101receive_testactive(0x80, 00, 00, 300); //È·ÈÏÊÕµ½OKÖ¡
+
+                if(my_status == 1)
+                {
+                    AT25_WriteByte(0x01, n);
+                    my_count++;  //·¢ËÍ³É¹¦Ò»¸ö,¼ÆÊı+1
+                    n = n + length; //´ËÖ¡Êı¾İ´¦ÀíÍêÁË£¬Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+                }
+                else if(my_status == 0)
+                {
+                    break;
+                }
+            }
+            else if(rd_status == 1) //´ËÖ¡Êı¾İÒÑ¾­·¢ËÍÍê³ÉÁË£¬Ìøµ½ÏÂÒ»Ö¡Êı¾İ½øĞĞ¼ì²é
+            {
+                n = n + length; //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+            }
+            else if(rd_status == 0) //±í¸ñµÄËùÓĞÊı¾İ¼ì²éÍê±ÏÁË£¬¿ÉÒÔÍË³öÁË
+            {
+                break;
+            }
+
+
+
+        }
+
+    }
+    //·¢ËÍÖÕÖ¹×ÜÕÙÊı¾İÖ¡
+    if(my_status == 1)
+    {
+        //¼¤»îÖÕÖ¹;´ÓÕ¾·¢ËÍ£º68 0B 0B 68 53 01 00 64 01 0A 01 00 00 00 14 FF 16,ÊÕµ½¿Ï¶¨È·ÈÏ
+        //									68 0B 0B 68 53 01 00 64 01 0A 01 00 00 00 14 FF 16
+        wdz_GPRS_string_to_array(TX_GPRS_101_Callhistory_over_data, my_txbuf);
+        wdz_GPRS_string_to_array(RX_GPRS_101_OKdata, my_rxbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+        USART_printf(&huart3, " Server Callhistorydata*\r\n");
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Callhistorydata--\r\n");
+    }
+
+    return my_status;
+
+}
+
+
+/*
+¹¦ÄÜ;¼ò»¯°æ Ê±ÖÓÍ¬²½ Ö¸Áî
+
+£¨19£©Ê±ÖÓÍ¬²½¼¤»î£ºÖ÷Õ¾·¢£º68 11 11 68 53 01 00 67 01 06 01 00 00 00 8B D4 0B 0F 05 07 0E 5616
+£¨20£©¿Ï¶¨È·ÈÏ£º´ÓÕ¾·¢£»10 80 01 00 81 16
+£¨21£©Ê±ÖÓÍ¬²½ÃüÁî(¼¤»îÈ·ÈÏ)£º´ÓÕ¾·¢£»68 11 11 68 73 01 00 67 01 07 00 01 00 00 B2 9D 0E 0F 05 07 0E 6A 16
+£¨22£©¿Ï¶¨È·ÈÏ£ºÖ÷Õ¾·¢£º10 80 01 00 81 16
+*/
+uint8_t WDZ_GPRS_101Resiver_AdjustTimeSimple_data(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_rtcbuffer1[7] = {0};
+
+    uint8_t k = 0;
+    uint8_t my_rxbuf[256] = "\x10\x8B\x01\x00\x8C\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_Linkquire_data;
+
+    //µÚ1²½£º»ñµÃÑÓÊ±»ñµÃÃüÁî£¬´æ´¢ºÁÃëÖµ£¬·¢ËÍ¿Ï¶¨È·ÈÏ£¬²¢Ğ£Õı±¾µØºÁÃëÖµ,È¡×îĞÂºÁÃëÖµ£¬·¢ËÍÑÓÊ±»ñµÃÃüÁî(¼¤»îÈ·ÈÏ)
+    //68 0C 0C 68 53 01 00 6A 01 06 01 00 00 00 3D C3 C6 16
+    my_status = WDZ_GPRS_101receive_testactive2(0X53, 0X67, 0X06, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    //µÚ4²½£¬·¢ËÍ¿Ï¶¨È·ÈÏ,	Ê±ÖÓÍ¬²½ÃüÁî(¼¤»îÈ·ÈÏ),½ÓÊÕ¿Ï¶¨È·ÈÏ
+    if(my_status == 1)
+    {
+        WDZ_GPRS_101Transmit_OKdata();//·¢ËÍ¿Ï¶¨È·ÈÏ
+
+        //ÊÕµ½Ê±ÖÓÍ¬²½¼¤»î 68 11 11 68 53 01 00 67 01 06 01 00   00 00     8B D4 0B 0F 05 07 0E    56 16
+
+        for(k = 0; k < 7; k++)
+        {
+            my_rtcbuffer1[k] = USART1_my_frame[k + 14];
+        }
+        my_array_to_RTCtime(my_rtcbuffer1); //Ğ£Ê±
+        my_RTC_TO_EEPROM(my_rtcbuffer1, 0); //´æÈëEEPROMÖĞ
+
+        wdz_GPRS_string_to_array(TX_GPRS_101_time_synchronization_data, my_txbuf); //Éú³É·¢ËÍÊı¾İ°ü
+        my_RTCtime_to_array(my_rtcbuffer1); //¶ÁÈ¡RTC
+        for(k = 0; k < 7; k++)
+        {
+            my_txbuf[k + 14] = my_rtcbuffer1[k];
+        }
+
+        wdz_GPRS_string_to_array(RX_GPRS_101_OKdata, my_rxbuf);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server Simple Time-4\r\n");
+    }
+
+    if(my_status == 1)
+    {
+        USART_printf(&huart3, " Server Simple Time*\r\n");
+    }
+
+    if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server  Simple Time-5\r\n");
+    }
+
+    return my_status;
+
+}
+
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ£ºÉú³ÉÒ£ĞÅÊı¾İ°ü  68 23 23 68 73 01 00 02 ?? 14 01 00 01 00 ?? ??  ??  ** 16
+*/
+void my_gprs_generate_101single_history_data(uint8_t temp, uint8_t *my_buf, uint8_t *my_rsbuf)
+{
+    uint8_t length = 0;
+    uint8_t alarm_data_number = 0;
+    uint8_t cycle_data_number = 0;
+
+
+    if(temp == 1) //Éú³ÉÊı¾İ°ü
+    {
+        length = my_buf[1];
+        alarm_data_number = my_buf[1];
+        cycle_data_number = my_buf[2];
+
+
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10 + 7;
+        my_rsbuf[2] = length + 10 + 7;
+
+        //¿ØÖÆÓòÂë´¦Àí
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        //my_rsbuf[4]=0x73&WDZ_GPRS_101FCB;  //¿ØÖÆÓòÂëÎª53/73
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X02; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x00;
+
+        my_buf1_to_buf2(my_buf, 3 + 8, my_rsbuf, 14, length); //´æ´¢Ò£ĞÅÊı¾İ
+
+        my_buf1_to_buf2(my_buf, 3 + 8 + alarm_data_number + cycle_data_number * 3, my_rsbuf, 14 + length, 7); //´æ´¢Ê±±ê
+
+        my_rsbuf[13 + length + 7 + 1] = 0XFF;
+        my_rsbuf[13 + length + 7 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+
+    }
+    else if(temp == 0) //Éú³É0Êı¾İÌåÊı¾İ°ü
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        //¿ØÖÆÓòÂë´¦Àí
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X02; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x00; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x00;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+    }
+
+
+}
+
+/*
+¹¦ÄÜ;Éú³ÉÒ£²âÊı¾İ°ü
+
+//68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+*/
+void my_gprs_generate_101analog_history_data(uint8_t temp, uint8_t *my_buf, uint8_t *my_rsbuf)
+{
+    uint8_t length = 0;
+    uint8_t single_data_number = 0;
+//	uint8_t cycle_data_number=0;
+
+
+    if(temp == 1) //Éú³ÉÊı¾İ°ü
+    {
+        length = my_buf[2];
+        single_data_number = my_buf[1];
+//		cycle_data_number=my_buf[2];
+
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 3 + 10;
+        my_rsbuf[2] = length * 3 + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x40;
+
+        my_buf1_to_buf2(my_buf, 3 + 8 + single_data_number, my_rsbuf, 14, length * 3);
+
+
+        my_rsbuf[13 + length * 3 + 1] = 0XFF;
+        my_rsbuf[13 + length * 3 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+
+    }
+    else if(temp == 0) //Éú³É0Êı¾İÌåÊı¾İ°ü
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x00; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x40;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+    }
+
+
+
+}
+
+
+
+
+
+
+
+/*
+¹¦ÄÜ;Éú³É»·¾³Êı¾İ°ü,tempÎª1Éú³ÉÓĞÊı¾İµÄÊı¾İ°ü£¬0Éú³É0Êı¾İµÄÊı¾İ°ü
+*/
+void my_gprs_generate_101MCU_history_data(uint8_t temp, uint8_t *my_buf, uint8_t *my_rsbuf)
+{
+    uint8_t length = 0;
+
+    if(temp == 1) //Éú³ÉÊı¾İ°ü
+    {
+        length = 4;
+
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 2 + 10;
+        my_rsbuf[2] = length * 2 + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x41;
+
+        my_buf1_to_buf2(my_buf, 3, my_rsbuf, 14, length * 2);
+
+
+
+        my_rsbuf[13 + length * 2 + 1] = 0XFF;
+        my_rsbuf[13 + length * 2 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+
+    }
+    else if(temp == 0) //Éú³É0Êı¾İÌåÊı¾İ°ü
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x00; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x41;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+    }
+
+
+}
+
+/*
+¹¦ÄÜ;Éú³ÉÓĞÊ±±êµÄ±¨¾¯Êı¾İÖ¡£¬temp=1Éú³ÉÓĞĞ§µÄÊı¾İ°ü£¬0Éú³ÉÊı¾İÎ»0µÄ¿ÕÊı¾İ°ü
+68 1C 1C 68 73 01 00 1E 02 03 01 00 08 00 01 20 BA 16 0F 05 07 0D 05 00 01 49 BC 16 0F 05 07 0D 02 16
+*/
+void my_gprs_generate_101Alarm_Time_history_data(uint8_t temp, uint8_t *my_buf, uint8_t *my_rsbuf) // Éú³É£¬ÓĞÊ±±êµÄ±¨¾¯Êı¾İ°ü
+{
+    uint8_t length = 0;
+    //uint8_t k=0;
+    length = my_buf[1];
+    if(temp == 1)
+    {
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 10 + 8;
+        my_rsbuf[2] = length * 10 + 8;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X1E; //ÀàĞÍ±êÊ¶£¬²»´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x03; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_buf1_to_buf2(my_buf, 2, my_rsbuf, 12, length * 10);
+
+        my_rsbuf[11 + length * 10 + 1] = 0XFF;
+        my_rsbuf[11 + length * 10 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+    }
+    else if(temp == 0)
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X1E; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x00; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x03; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x00;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+    }
+
+
+
+}
+//--------²âÊÔÓÃ³ÌĞò--------------------------
+/*
+¹¦ÄÜ£º²âÊÔ£¬°Ñ×ÜÕÙÊı¾İĞ´Èëµ½GPRS·¢ËÍÊı×éÖĞ£¬²¢Éú³ÉÒ£ĞÅÖ¡£¬Ò£²âÖ¡¡¢»·¾³Êı¾İ ÖĞ¹ú
+*/
+void my_test_calldata_to_GPRS_array(void)
+{
+    uint8_t my_status = 0;
+    uint8_t my_txbuf[256] = {0};
+
+    my_status = my_eeprom_data_to_cycle_array();
+
+    if(my_status == 1)
+    {
+        //Éú³É·¢ËÍÊı¾İ°ü£¬·¢ËÍÊı¾İ£¬ÏÈ·¢Ò£ĞÅ¡¢ÔÙ·¢Ò£²â¡¢×îºó·¢»·¾³
+        //Ò£ĞÅÊı¾İ°ü 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
+
+        my_gprs_generate_101single_data(1, my_txbuf);
+        USART_printf(&huart3, "\r\n");
+        USART_printf(&huart3, my_txbuf);
+        USART_printf(&huart3, "\r\n");
+
+        //Ò£²âÊı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101analog_data(1, my_txbuf);
+        USART_printf(&huart3, "\r\n");
+        USART_printf(&huart3, my_txbuf);
+        USART_printf(&huart3, "\r\n");
+        //»·¾³Êı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101MCU_data(1, my_txbuf);
+        USART_printf(&huart3, "\r\n");
+        USART_printf(&huart3, my_txbuf);
+        USART_printf(&huart3, "\r\n");
+    }
+
+}
+
+/*
+¹¦ÄÜ£º½øĞĞ²¹·¢±¨¾¯Êı¾İ¼à²â¼°·¢ËÍ
+
+ĞèÒªµÄ´¦Àí£¬°ÑMY_433_Alarmdata_NOtimeBuf£¬MY_433_Alarmdata_timeBuf¸´ÖÆ±¨¾¯Êı¾İ£¬MY_433_ALarmdata_number¸´ÖÆĞÅÏ¢Ìå¸öÊı
+È»ºóÀûÓÃÒÑÓĞº¯Êı½øĞĞ·¢ËÍ
+      my_status=WDZ_GPRS_101Transmit_Alarm_Data();//ÀûÓÃGPRSÍøÂç·¢ËÍ±¨¾¯Êı¾İ£¬
+			if(my_status==1)
+			my_GPRS_chang_tablereadpt(1,1); //Í¬Ê±ĞŞ¸ÄeepromÖĞ£¬¶ÁĞ´×´Ì¬ºÍĞ´Ö¸Õë¡£
+			else my_GPRS_chang_tablereadpt(1,0);  //Ö»ĞŞ¸Ä¶ÁÖ¸ÕëµØÖ·£¬¶ø²»ĞŞ¸ÄÖ¡·¢ËÍ×´Ì¬×Ö½Ú¡£
+*/
+void my_re_transmit_alarmdata()
+{
+    int transmint_alarmdata_status = 0;
+    int my_status = 0;
+
+    uint8_t my_buf[256] = {0};
+
+    uint32_t first_address = 0;
+    uint32_t second_address = 0;
+    uint8_t alarm_data_number = 0;
+    uint8_t rd_status = 0;
+    uint8_t length = 0;
+    int k = 0;
+    uint8_t tempbuf[12] = {0};
+    uint32_t startaddressPT = MY_Table1_Alarmdata_StartAddress;
+    uint32_t endaddressPT = MY_Table1_Alarmdata_EndAddress;
+    uint32_t writeaddressPT = MY_Table1_Alarmdata_WriteAddress;
+    uint32_t readaddressPT = MY_Table1_Alarmdata_ReadAddress;
+    uint32_t tableaddress = 210; //TABLE1¶ÁÖ¸ÕëÊ×µØÖ·
+    int temp_address1 = 0;
+    int temp_address2 = 0;
+
+    transmint_alarmdata_status = AT25_ReadByte(200); //¶ÁÈ¡²¹·¢×´Ì¬Î»
+
+    //transmint_alarmdata_status=1;//²âÊÔÊ¹ÓÃ£¬Ç¿ÖÆÎª1£¬Õı³£ÔËĞĞÊ±ÆÁ±Îµô@@@@@
+
+    if(transmint_alarmdata_status == 1) //Îª1±íÊ¾£¬ÓĞÊı¾İĞèÒª²¹·¢
+    {
+
+        //***´¦Àí»ñµÃ×îĞÂµÄ±íÖ¸ÕëµØÖ·
+        SPI_EE_BufferRead2(tempbuf, 201, 12);
+        if(tempbuf[0] == tempbuf[1] && tempbuf[1] == tempbuf[2] && tempbuf[2] == tempbuf[3] && tempbuf[3] == tempbuf[4] && tempbuf[4] == tempbuf[5])
+        {
+
+            my_val_writeto_eeprom(tempbuf, startaddressPT, endaddressPT, writeaddressPT, readaddressPT, 201);
+
+        }
+        else
+        {
+
+            my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
+
+            MY_Table1_Alarmdata_StartAddress = startaddressPT;
+            MY_Table1_Alarmdata_EndAddress = endaddressPT;
+            MY_Table1_Alarmdata_WriteAddress = writeaddressPT;
+            MY_Table1_Alarmdata_ReadAddress = readaddressPT;
+
+        }
+        //-----ĞèÒª½øĞĞ¶ÁÖ¸ÕëĞ£Ñé£¬Èç¹ûµ½Ä©Î²ÁË´ÓĞÂ¸³Öµ£¬±äÎªÆğÊ¼µØÖ·£¬È»ºó¿ªÊ¼¶Á
+        if(readaddressPT + 12 > endaddressPT)
+        {   readaddressPT = startaddressPT;
+            MY_Table1_Alarmdata_ReadAddress = readaddressPT;
+            tempbuf[0] = readaddressPT & 0x0000ff;
+            tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+            tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+            SPI_EE_BufferWrite2(tempbuf, 210, 3);
+        }
+        //-------------------------
+
+
+
+        first_address = readaddressPT;
+        //first_address=startaddressPT;  //²âÊÔÓÃ£¬Õı³£ÔËĞĞÊ±É¾³ı @@@@@
+        second_address = writeaddressPT;
+
+        //²éÑ¯Table1 £¬»ñµÃ±¨¾¯Êı¾İ£¬Éú³ÉÎŞÊ±±ê±¨¾¯Êı¾İÖ¡ºÍÓĞÊ±±ê±¨¾¯Êı¾İÖ¡
+
+        if(first_address < second_address) //1-Ğ´Ö¸ÕëÔÚ¸ßµØÖ·£¬¶ÁÖ¸ÕëÔÚµÍµØÖ·
+        {
+            while(first_address < second_address)
+            {   my_status = 0;
+                SPI_EE_BufferRead2(my_buf, first_address, 252); //¶ÁÈ¡Ç°Ò»Ö¡Êı¾İµÄÇ°3¸ö×Ö·û
+                rd_status = my_buf[0]; //GPRS·¢ËÍ×´Ì¬£¬2ÎªÎ´·¢ËÍ£¬1ÎªÒÑ·¢ËÍ
+                alarm_data_number = my_buf[1];  //´ËÖ¡Êı¾İÖĞº¬ÓĞµÄĞÅÏ¢Ìå¸öÊı
+                //¶Á±íÖ¸Õë½øĞĞÇ¿ÖÆĞ£Ñé 2015-11-16
+                if((rd_status != 1 && rd_status != 2) || alarm_data_number != 1)
+                {
+                    first_address = second_address; // ½øĞĞÖ¸ÕëĞ£Õı£¬²»Ò»¶¨ÓĞÓÃ
+                    MY_Table1_Alarmdata_ReadAddress = first_address;
+                    my_save_PTTO_EEROM(first_address, tableaddress);
+                    return ;
+                }
+
+
+                length = 2 + alarm_data_number * 10; //Ëã³ö´ËÖ¡Êı¾İµÄ×Ü³¤¶È
+                length = 12; //¹Ì¶¨³¤¶È£¬¿¼ÂÇÃ»ÓĞ²¢·¢ĞÔ
+
+                if(rd_status == 2 && alarm_data_number == 1 ) //´ËÖ¡Êı¾İÃ»ÓĞ·¢ËÍ³öÈ¥,½øĞĞ·¢ËÍ´¦Àí
+                {
+                    SPI_EE_BufferRead2(my_buf, first_address, length); //1×Ö½ÚÎªGPRS·¢ËÍ×´Ì¬£¬2×Ö½ÚÎª¸öÊı£¬3×Ö½ÚÎªµØÖ·µØÎ»£¬4×Ö½ÚÎªµØÖ·¸ßÎ»£¬5×Ö½ÚÎªÖµ£¬6-12ÎªÊ±±ê
+                    for(k = 0; k < alarm_data_number; k++) //Ã¿¸öĞÅÏ¢ÌåÕ¼10¸ö×Ö½Ú£¬µØÖ·2¸ö£¬ÖµÒ»¸ö£¬Ê±±ê7¸ö
+                    {   temp_address1 = k * 10;
+                        temp_address2 = k * 12;
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 0] = my_buf[2 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 1] = my_buf[3 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 2] = my_buf[4 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 3] = my_buf[5 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 4] = my_buf[6 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 5] = my_buf[7 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 6] = my_buf[8 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 7] = my_buf[9 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 8] = my_buf[10 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 9] = my_buf[11 + temp_address2];
+                    }
+                    for(k = 0; k < alarm_data_number; k++) //Ã¿¸öĞÅÏ¢ÌåÕ¼3¸ö×Ö½Ú£¬µØÖ·2¸ö£¬ÖµÒ»¸ö
+                    {   temp_address1 = k * 3;
+                        temp_address2 = k * 12;
+                        MY_433_Alarmdata_NOtimeBuf[temp_address1 + 0] = my_buf[2 + temp_address2];
+                        MY_433_Alarmdata_NOtimeBuf[temp_address1 + 1] = my_buf[3 + temp_address2];
+                        MY_433_Alarmdata_NOtimeBuf[temp_address1 + 2] = my_buf[4 + temp_address2];
+                    }
+                    MY_433_ALarmdata_number = alarm_data_number; //ĞÅÏ¢Ìå¸öÊı
+
+                    my_status = WDZ_GPRS_101Transmit_Alarm_Data(); //ÀûÓÃGPRSÍøÂç·¢ËÍ±¨¾¯Êı¾İ£¬
+                    if(my_status == 1)
+                    {
+                        my_GPRS_chang_tablereadpt(1, 1); //Í¬Ê±ĞŞ¸ÄeepromÖĞ£¬¶ÁĞ´×´Ì¬ºÍ¶ÁÖ¸ÕëµØÖ·¡£
+                        first_address = first_address + length; //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+                        //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                        // tempbuf[0]=first_address&0x0000ff;
+                        // tempbuf[1]=(first_address>>8)&0x0000ff;
+                        //  tempbuf[2]=(first_address>>16)&0x0000ff;
+                        //  SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                    }
+                    else
+                    {
+                        my_GPRS_chang_tablereadpt(1, 0); //¶ÁÖ¸Õë²»ÒÆ¶¯£¬±£´æ´ËÖ¡·¢ËÍ×´Ì¬Îª2£¬ĞŞ¸Ä²¹·¢×´Ì¬Îª1
+                        //ÎªÁË·ÀÖ¹¶ÁÖ¸Õë²»ÒÆ¶¯£¬ËÀ»úµÄÎÊÌâ£¬Å×ÆúÕâ¸öÓĞÎÊÌâµÄÖ¡£¬µÈ´ıµ½ÏÂÒ»¸ötimeÉ¨ÃèÖÜÆÚ·¢ËÍÏÂÒ»¸öÖ¡
+                        //	first_address=first_address+length;   //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ??
+
+                        //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                        // tempbuf[0]=first_address&0x0000ff;
+                        // tempbuf[1]=(first_address>>8)&0x0000ff;
+                        //tempbuf[2]=(first_address>>16)&0x0000ff;
+                        //SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                        //	my_save_PTTO_EEROM(first_address,tableaddress);
+                        break;  //·¢ËÍÊ§°ÜÁË£¬¾Í²»ÒªÔÚ¼ÌĞø·¢ÁË
+                    }
+                }
+                else if(rd_status == 1 && alarm_data_number == 1) //´ËÖ¡Êı¾İÒÑ¾­·¢ËÍÍê³ÉÁË£¬Ìøµ½ÏÂÒ»Ö¡Êı¾İ½øĞĞ¼ì²é
+                {
+
+                    first_address = first_address + length; //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+
+                    //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                    //tempbuf[0]=first_address&0x0000ff;
+                    //tempbuf[1]=(first_address>>8)&0x0000ff;
+                    // tempbuf[2]=(first_address>>16)&0x0000ff;
+                    // SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                    MY_Table1_Alarmdata_ReadAddress = first_address;
+                    my_save_PTTO_EEROM(first_address, tableaddress);
+                }
+                else if(rd_status == 0 || rd_status > 2 || alarm_data_number != 1) //Èç¹ûÖ¸Õë³öÏÖÎÊÌâ£¬·¢ÉúÆ¯ÒÆÁË,¶ÁÖ¸ÕëÒÆ¶¯µ½Ğ´Ö¸Õë´¦
+                {
+                    first_address = first_address + 12;
+                }
+                //ÅĞ¶Ï¶ÁÖ¸ÕëÊÇ·ñÒç³öÇøÓò
+                if(first_address + 12 >= endaddressPT) //
+                {
+                    first_address = startaddressPT;
+                }
+
+            }
+
+            if(my_status == 1) //Îª1±íÊ¾³É¹¦ÁË£¬ËùÓĞ²¹·¢Êı¾İ¶¼³öÈ¥ÁË
+            {
+                AT25_WriteByte(0x00, 200);
+                RE_ALarmData_Status = 0x00;
+                first_address = second_address; // ½øĞĞÖ¸ÕëĞ£Õı£¬²»Ò»¶¨ÓĞÓÃ
+
+                //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                // tempbuf[0]=first_address&0x0000ff;
+                //tempbuf[1]=(first_address>>8)&0x0000ff;
+                //tempbuf[2]=(first_address>>16)&0x0000ff;
+                //SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                MY_Table1_Alarmdata_ReadAddress = first_address;
+                my_save_PTTO_EEROM(first_address, tableaddress);
+            }
+            else if(my_status == 0 && first_address >= second_address)
+            {
+                AT25_WriteByte(0x00, 200); //³öÎÊÌâµÄÖ¡¾ÍÅ×ÆúÁË,³·ÏúÁË²¹·¢±¨¾¯Êı¾İ×´Ì¬
+                RE_ALarmData_Status = 00;
+                //Ö¸ÕëĞ£Õı
+                first_address = second_address; // ½øĞĞÖ¸ÕëĞ£Õı£¬²»Ò»¶¨ÓĞÓÃ
+
+                //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                //tempbuf[0]=first_address&0x0000ff;
+                //tempbuf[1]=(first_address>>8)&0x0000ff;
+                //tempbuf[2]=(first_address>>16)&0x0000ff;
+                //SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                MY_Table1_Alarmdata_ReadAddress = first_address;
+                my_save_PTTO_EEROM(first_address, tableaddress);
+
+            }
+
+
+        }
+        else if(first_address > second_address) //2-Ğ´Ö¸ÕëÔÚµÍµØÖ·£¬¶ÁÖ¸ÕëÔÚ¸ßµØÖ·
+        {
+            while((first_address + 12) < endaddressPT)
+            {   my_status = 0;
+                SPI_EE_BufferRead2(my_buf, first_address, 3); //¶ÁÈ¡Ç°Ò»Ö¡Êı¾İµÄÇ°3¸ö×Ö·û
+                rd_status = my_buf[0]; //GPRS·¢ËÍ×´Ì¬£¬2ÎªÎ´·¢ËÍ£¬1ÎªÒÑ·¢ËÍ
+                alarm_data_number = my_buf[1];  //´ËÖ¡Êı¾İÖĞº¬ÓĞµÄĞÅÏ¢Ìå¸öÊı
+                //¶Á±íÖ¸Õë½øĞĞÇ¿ÖÆĞ£Ñé 2015-11-16
+                if((rd_status != 1 && rd_status != 2) || alarm_data_number != 1)
+                {
+                    first_address = second_address; // ½øĞĞÖ¸ÕëĞ£Õı£¬²»Ò»¶¨ÓĞÓÃ
+                    MY_Table1_Alarmdata_ReadAddress = first_address;
+                    my_save_PTTO_EEROM(first_address, tableaddress);
+                    return ;
+                }
+
+
+
+                length = 2 + alarm_data_number * 10; //Ëã³ö´ËÖ¡Êı¾İµÄ×Ü³¤¶È
+                length = 12; //¹Ì¶¨³¤¶È£¬¿¼ÂÇÃ»ÓĞ²¢·¢ĞÔ
+
+                if(rd_status == 2 && alarm_data_number == 1) //´ËÖ¡Êı¾İÃ»ÓĞ·¢ËÍ³öÈ¥,½øĞĞ·¢ËÍ´¦Àí
+                {
+                    SPI_EE_BufferRead2(my_buf, first_address, length); //1×Ö½ÚÎªGPRS·¢ËÍ×´Ì¬£¬2×Ö½ÚÎª¸öÊı£¬3×Ö½ÚÎªµØÖ·µØÎ»£¬4×Ö½ÚÎªµØÖ·¸ßÎ»£¬5×Ö½ÚÎªÖµ£¬6-12ÎªÊ±±ê
+                    for(k = 0; k < alarm_data_number; k++) //Ã¿¸öĞÅÏ¢ÌåÕ¼10¸ö×Ö½Ú£¬µØÖ·2¸ö£¬ÖµÒ»¸ö£¬Ê±±ê7¸ö
+                    {
+                        temp_address1 = k * 10;
+                        temp_address2 = k * 12;
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 0] = my_buf[2 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 1] = my_buf[3 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 2] = my_buf[4 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 3] = my_buf[5 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 4] = my_buf[6 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 5] = my_buf[7 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 6] = my_buf[8 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 7] = my_buf[9 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 8] = my_buf[10 + temp_address2];
+                        MY_433_Alarmdata_TimeBuf[temp_address1 + 9] = my_buf[11 + temp_address2];
+                    }
+                    for(k = 0; k < alarm_data_number; k++) //Ã¿¸öĞÅÏ¢ÌåÕ¼3¸ö×Ö½Ú£¬µØÖ·2¸ö£¬ÖµÒ»¸ö
+                    {
+                        temp_address1 = k * 3;
+                        temp_address2 = k * 12;
+                        MY_433_Alarmdata_NOtimeBuf[temp_address1 + 0] = my_buf[2 + temp_address2];
+                        MY_433_Alarmdata_NOtimeBuf[temp_address1 + 1] = my_buf[3 + temp_address2];
+                        MY_433_Alarmdata_NOtimeBuf[temp_address1 + 2] = my_buf[4 + temp_address2];
+                    }
+                    MY_433_ALarmdata_number = alarm_data_number; //ĞÅÏ¢Ìå¸öÊı
+
+                    my_status = WDZ_GPRS_101Transmit_Alarm_Data(); //ÀûÓÃGPRSÍøÂç·¢ËÍ±¨¾¯Êı¾İ£¬
+                    if(my_status == 1 )
+                    {
+                        my_GPRS_chang_tablereadpt(1, 1); //Í¬Ê±ĞŞ¸ÄeepromÖĞ£¬¶ÁĞ´×´Ì¬ºÍ¶ÁÖ¸ÕëµØÖ·¡£
+                        first_address = first_address + length; //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+                        //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                        //tempbuf[0]=first_address&0x0000ff;
+                        //tempbuf[1]=(first_address>>8)&0x0000ff;
+                        //tempbuf[2]=(first_address>>16)&0x0000ff;
+                        //SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                    }
+                    else
+                    {
+                        my_GPRS_chang_tablereadpt(1, 0); //¶ÁÖ¸Õë²»ÒÆ¶¯£¬±£´æ´ËÖ¡·¢ËÍ×´Ì¬Îª2£¬ĞŞ¸Ä²¹·¢×´Ì¬Îª1
+                        //ÎªÁË·ÀÖ¹¶ÁÖ¸Õë²»ÒÆ¶¯£¬ËÀ»úµÄÎÊÌâ£¬Å×ÆúÕâ¸öÓĞÎÊÌâµÄÖ¡£¬µÈ´ıµ½ÏÂÒ»¸ötimeÉ¨ÃèÖÜÆÚ·¢ËÍÏÂÒ»¸öÖ¡
+                        //first_address=first_address+length;   //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+
+                        //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                        //tempbuf[0]=first_address&0x0000ff;
+                        //tempbuf[1]=(first_address>>8)&0x0000ff;
+                        //tempbuf[2]=(first_address>>16)&0x0000ff;
+                        //SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                        //  my_save_PTTO_EEROM(first_address,tableaddress);
+
+                        break;  //·¢ËÍÊ§°ÜÁË£¬¾Í²»ÒªÔÚ¼ÌĞø·¢ÁË
+                    }
+                }
+                else if(rd_status == 1 && alarm_data_number == 1) //´ËÖ¡Êı¾İÒÑ¾­·¢ËÍÍê³ÉÁË£¬Ìøµ½ÏÂÒ»Ö¡Êı¾İ½øĞĞ¼ì²é
+                {
+                    first_address = first_address + length; //Ö¸ÕëÒÆ¶¯µ½ÏÂÒ»Ö¡Êı¾İ
+
+                    //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                    //tempbuf[0]=first_address&0x0000ff;
+                    //tempbuf[1]=(first_address>>8)&0x0000ff;
+                    //tempbuf[2]=(first_address>>16)&0x0000ff;
+                    //SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                    MY_Table1_Alarmdata_ReadAddress = first_address;
+                    my_save_PTTO_EEROM(first_address, tableaddress);
+                }
+                else if(rd_status == 0 || alarm_data_number == 0 || alarm_data_number > 1) //Èç¹ûÖ¸Õë³öÏÖÎÊÌâ£¬·¢ÉúÆ¯ÒÆÁË,¶ÁÖ¸Õë¸´Î»Îª1
+                {
+                    first_address = endaddressPT;
+                }
+
+            }
+
+            if(my_status == 1) //Îª1±íÊ¾³É¹¦ÁË£¬ËùÓĞ²¹·¢Êı¾İ¶¼³öÈ¥ÁË
+            {
+                //AT25_WriteByte(0x00,200);
+                first_address = startaddressPT; // ½øĞĞÖ¸ÕëĞ£Õı£¬²»Ò»¶¨ÓĞÓÃ
+
+                //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                //tempbuf[0]=first_address&0x0000ff;
+                //tempbuf[1]=(first_address>>8)&0x0000ff;
+                //tempbuf[2]=(first_address>>16)&0x0000ff;
+                //SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                MY_Table1_Alarmdata_ReadAddress = first_address;
+                my_save_PTTO_EEROM(first_address, tableaddress);
+            }
+            else if(my_status == 0 && (first_address + 12) > endaddressPT)
+            {
+                //Ö¸ÕëĞ£Õı
+                first_address = startaddressPT; // ½øĞĞÖ¸ÕëĞ£Õı£¬²»Ò»¶¨ÓĞÓÃ
+
+                //¶ÁÖ¸Õë¼ÇÂ¼µ½romÖĞ
+                //tempbuf[0]=first_address&0x0000ff;
+                //tempbuf[1]=(first_address>>8)&0x0000ff;
+                //tempbuf[2]=(first_address>>16)&0x0000ff;
+                // SPI_EE_BufferWrite2(tempbuf,tableaddress,3);
+                MY_Table1_Alarmdata_ReadAddress = first_address;
+                my_save_PTTO_EEROM(first_address, tableaddress);
+
+            }
+
+
+
+        }
+
+
+
+
+    }
+
+}
+
+/*
+	¹¦ÄÜ£º´æ´¢myptµØÖ·ÖµµÄµÍ3¸ö×Ö½Úµ½EEPROMÖĞtabladdress¿ªÊ¼µÄµØÖ·
+	*/
+void my_save_PTTO_EEROM(uint32_t mypt, uint32_t tableaddress)
+{   uint8_t tempbuf[3] = {0};
+    uint32_t first_address = mypt;
+    tempbuf[0] = first_address & 0x0000ff;
+    tempbuf[1] = (first_address >> 8) & 0x0000ff;
+    tempbuf[2] = (first_address >> 16) & 0x0000ff;
+    SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+}
+
+
+/*
+¹¦ÄÜ£º½ÓÊÕ  ·­ÅÆ  Ö¸Áî£¬½øĞĞÏìÓ¦£¬·¢ËÍÊı¾İ
+*/
+uint8_t WDZ_GPRS_101Resiver_ControlMonitor_Data(void)
+{
+    uint8_t my_status = 0;
+//	uint8_t my_rxbuf[256]="\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = {0X68, 0X0E, 0X0E, 0X68, 0X00, 0X01, 0X00, 0X2D, 0X02, 0X07, 0X01, 0X00, 0X01, 0X60, 0X01, 0X02, 0X60, 0X00, 0XFF, 0X16};
+    uint8_t *myrsbuf1 = USART1_my_frame;
+    uint8_t status_value = 0;
+    uint8_t my_address = 0;
+
+
+    //µÚ1²½£º½ÓÊÕµ½×ÜÕÙÖ¸Áî	 Ö÷Õ¾·¢ËÍ£º68 0B 0B 68 73 01 00 64 01 06 01 00 00 00 14 F4 16
+    my_status = WDZ_GPRS_101receive_testactive2(0X73, 0X2D, 0X06, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    if(my_status == 1)
+    {
+        //·¢ËÍ¿Ï¶¨È·ÈÏÖ¸Áî
+        //	WDZ_GPRS_101Transmit_OKdata();
+        my_txbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_txbuf[6] = DTU_ADDRESS >> 8;
+        my_txbuf[8] = 2;
+        my_txbuf[10] = DTU_ADDRESS & 0X00FF;
+        my_txbuf[11] = DTU_ADDRESS >> 8;
+        my_txbuf[12] = myrsbuf1[12]; //01
+        my_txbuf[13] = myrsbuf1[13]; //60
+        my_txbuf[14] = myrsbuf1[14]; //Ö¸Ê¾Æ÷µØÖ·£¬01,02,03£¬04£¬05,06,07,08,09
+        my_txbuf[15] = myrsbuf1[15]; //02,·­ÅÆ£¬03¸´Î»
+        my_txbuf[16] = myrsbuf1[16]; //60
+        my_txbuf[17] = myrsbuf1[17]; //00
+        wdz_GPRS_101check_generate(my_txbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+        //my_at_senddata(my_txbuf);  //ÀûÓÃGPRS·µ»ØÈ·ÈÏÖ¸Áî
+        //¿ØÖÆ433¹¤×÷£¬½øĞĞ·­ÅÆ²Ù×÷
+        if(my_txbuf[15] == 0X02) //·­ÅÆ
+            status_value = 0x81;
+        else if(my_txbuf[15] == 0X03)
+            status_value = 0x80;
+        if(my_txbuf[14] >= 4 && my_txbuf[14] <= 6)
+            my_address = my_txbuf[14] + 1;
+        else if(my_txbuf[14] >= 7 && my_txbuf[14] <= 9)
+            my_address = my_txbuf[14] + 2;
+        else if(my_txbuf[14] >= 1 && my_txbuf[14] <= 3)
+            my_address = my_txbuf[14] + 0;
+
+        my_status = WDZ_101Transmit_Control_monitor(my_address, status_value);		//¶Ô433Ä£¿é·¢ËÍÖ¸Áî£¬¶¯×÷Ö¸Ê¾Æ÷
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server ControlMonitor fail-1\r\n");
+    }
+
+    if(my_status == 1)
+    {
+        USART_printf(&huart3, " Server ControlMonitor* %d\r\n", my_address);
+        my_at_senddata(my_txbuf);  //ÀûÓÃGPRS·µ»ØÈ·ÈÏÖ¸Áî
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server ControlMonitor fail-2\r\n");
+    }
+
+
+
+    return my_status;
+}
+
+void my_reset_mcu()  //ÖØÆôMCUÍ¨¹ıÈíÃüÁî
+{
+    __disable_fault_irq();
+    NVIC_SystemReset();
+}
+
+/*
+¹¦ÄÜ£º·¢ËÍÃüÁî£¬µÈ´ı£¨ÌØ¶¨£©·´À¡ÃüÁî,¸ü»»DTUµØÖ·Ê¹ÓÃ£
+·¢ËÍÊı¾İtypeÎªÀàĞÍ£¬1Îª¹Ì¶¨³¤¶È£¬2Îª·Ç¹Ì¶¨³¤¶È£¬txbufÎª·¢ËÍÖ¸ÁîÊı×é,address_typeÎª1£¬rxbufÎª½ÓÊÕ£¬DTUµØÖ·
+£¨2,txbuf,2,rxbuf)·¢ËÍ·Ç¹Ì¶¨³¤¶È£¬(1,txbuf,2,rxbuf)·¢ËÍ¹Ì¶¨³¤¶È
+*/
+uint8_t WDZ_GPRS_101transmint_commd_wait_commd2(uint8_t type, uint8_t *txbuf, uint8_t address_type, uint8_t *rxbuf, uint16_t my_temp_dtu_address) //typeÎªÀàĞÍ£¬1Îª¹Ì¶¨³¤¶È£¬2Îª·Ç¹Ì¶¨³¤¶È£¬txbufÎª·¢ËÍÖ¸ÁîÊı×é
+{
+    uint8_t FCB = 0x20;
+    uint16_t my_dtu_address = my_temp_dtu_address;
+    uint8_t my_status = 0;
+    uint8_t n = 1; //·¢ËÍ´ÎÊı
+    uint8_t *my_txbuf = txbuf;
+//	uint8_t temp=0;
+
+    uint8_t linkcontrol = 0;
+    uint8_t type_identification = 0;
+    uint8_t  transmit_reason = 0;
+    uint16_t my_start_time = 0;
+//********************·¢ËÍ·Ç¹Ì¶¨³¤¶ÈÖ¡£¬Ó¦´ğÎªOKÖ¡
+    if(type == 2)
+    {
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_txbuf[4] = my_txbuf[4] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_txbuf[4] = my_txbuf[4] | (FCB);
+        //Ä¿µÄµØÖ·´¦Àí
+        my_txbuf[5] = my_temp_dtu_address & 0xFF;
+        my_txbuf[6] = my_temp_dtu_address >> 8;
+        if(address_type == 1)
+        {
+            my_txbuf[10] = my_txbuf[5];
+            my_txbuf[11] = my_txbuf[6];
+        }
+        else if(address_type == 2)
+        {
+            my_txbuf[10] = my_txbuf[5];
+            my_txbuf[11] = my_txbuf[6];
+        }
+
+        //Ğ£ÑéÎ»²úÉú
+        wdz_GPRS_101check_generate(my_txbuf);
+        //·¢ËÍÖ¸Áî
+        while((n) > 0 && my_status == 0)
+        {
+
+            my_at_senddata(my_txbuf); //ÀûÓÃGPRS·¢ËÍÊı¾İÊı×é
+
+            //Delay_us(300); //²âÊÔÊ¹ÓÃ
+
+
+            my_start_time = my_tim6_count;
+            do {
+
+                my_status = WDZ_GPRS_101receive_testactive(0X80, 00, 00, 1500); ///WDZ_GPRS_101recive_OKdata();  //µÈ´ı0KÈ·ÈÏ·´À¡ÃüÁî 15Ãë
+                if(my_status == 1)break;
+                else my_status = 0;
+            } while(my_tim6_count - my_start_time <= 3);
+            n--;
+            if(n != 0) USART_printf(&huart1, "\x1A"); //·¢Ò»¸ö½áÊø·û£¬·ÀÖ¹ÓµÈû
+
+        }
+
+
+
+    }
+
+
+//**************·¢ËÍ¹Ì¶¨³¤¶ÈÖ¡£¬Ó¦´ğÎª¹Ì¶¨³¤¶ÈÖ¡
+    else	if(type == 1 && rxbuf[0] == 0x10)
+    {
+        //²úÉú½ÓÊÕµÄ¿ØÖÆÓòÂë£¬ÀàĞÍ£¬´«ÊäÔ­Òò
+        linkcontrol = rxbuf[1];
+        type_identification = 0;
+        transmit_reason = 0;
+
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_txbuf[1] = my_txbuf[1] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_txbuf[1] = my_txbuf[1] | (FCB);
+        //Ä¿µÄµØÖ·´¦Àí
+        my_txbuf[2] = my_dtu_address & 0xFF;
+        my_txbuf[3] = my_dtu_address >> 8;
+
+        //Ğ£ÑéÎ»²úÉú
+        wdz_GPRS_101check_generate(my_txbuf);
+        //·¢ËÍÖ¸Áî
+        while((n--) > 0 && my_status == 0)
+        {
+            //my_UART4_printf(UART4,my_txbuf);
+            my_at_senddata(my_txbuf); //ÀûÓÃGPRS·¢ËÍÊı¾İÊı×é
+
+            //Delay_us(300); //²âÊÔ
+
+            my_status = WDZ_GPRS_101receive_testactive(linkcontrol, type_identification, transmit_reason, 1500); //µÈ´ı·´À¡ÃüÁî
+            if(my_status == 1)break;
+            else my_status = 0;
+        }
+    }
+//**********·¢ËÍ¹Ì¶¨³¤¶ÈÖ¡£¬Ó¦¸ÃÎª·Ç¹Ì¶¨³¤¶ÈÖ¡
+    else if(type == 1 && rxbuf[0] == 0x68)
+    {
+        //²úÉú½ÓÊÕµÄ¿ØÖÆÓòÂë£¬ÀàĞÍ£¬´«ÊäÔ­Òò
+        linkcontrol = rxbuf[4];
+        type_identification = rxbuf[7];
+        transmit_reason = rxbuf[9];
+
+        //¿ØÖÆÓòÂë´¦Àí
+        if(WDZ_GPRS_101FCB == 0x00)
+            my_txbuf[1] = my_txbuf[1] & (~FCB);
+        else if(WDZ_GPRS_101FCB == 0x20)
+            my_txbuf[1] = my_txbuf[1] | (FCB);
+        //Ä¿µÄµØÖ·´¦Àí
+        my_txbuf[2] = my_temp_dtu_address & 0xFF;
+        my_txbuf[3] = my_temp_dtu_address >> 8;
+
+        //Ğ£ÑéÎ»²úÉú
+        wdz_GPRS_101check_generate(my_txbuf);
+        //·¢ËÍÖ¸Áî
+        while((n--) > 0 && my_status == 0)
+        {
+            //my_UART4_printf(UART4,my_txbuf);
+            my_at_senddata(my_txbuf);
+
+            //Delay_us(600); //²âÊÔ
+
+            my_status = WDZ_GPRS_101receive_testactive(linkcontrol, type_identification, transmit_reason, 1500); //µÈ´ı·´À¡ÃüÁî
+            if(my_status == 1)break;
+            else my_status = 0;
+        }
+    }
+
+
+    //¼ÇÂ¼·¢ËÍ±ä»¯Ö¡
+    WDZ_GPRS_101FCB = WDZ_GPRS_101FCB ^ 0x20;
+    if(my_status == 1)
+    {
+        return 1;
+    }
+    else return 0;
+
+}
+
+/*
+¹¦ÄÜ£ºµ÷ÕûÖ¸Ê¾Æ÷Ò£²âÊı¾İÖÜÆÚÊ±¼ä£¬Ò»´ÎÖ»ÄÜµ÷ÊÔÒ»¸öÖ¸Ê¾Æ÷¡£
+*/
+uint8_t WDZ_GPRS_101Resiver_Cycle_analog_time_Data(void)
+{
+    uint8_t my_status = 0;
+//	uint8_t my_rxbuf[256]="\x10\x80\x01\x00\x81\x16";
+//68 0E 0E 68 73 03 00 3D 02 07 03 00 01 70 01 02 70 01 72 16
+
+    uint8_t my_txbuf[256] = {0X68, 0X0E, 0X0E, 0X68, 0X73, 0X03, 0X00, 0X3D, 0X02, 0X07, 0X03, 0X00, 0X01, 0X70, 0X01, 0X02, 0X70, 0X01, 0XFF, 0X16};
+    uint8_t *myrsbuf1 = USART1_my_frame;
+    uint8_t status_value = 0;
+    uint8_t my_address = 0;
+
+
+    //µÚ1²½£º½ÓÊÕµ½×ÜÕÙÖ¸Áî	 Ö÷Õ¾·¢ËÍ£º68 0E 0E 68 73 03 00 3D 02 06 03 00 01 70 01 02 70 01 72 16
+    my_status = WDZ_GPRS_101receive_testactive2(0X73, 0X3D, 0X06, 300);
+    if(my_status == 0)  return my_status; //   Èç¹ûÖ¸Áî´íÎó£¬·µ»Ø£¬¼ì²éÏÂÒ»ÌõÖ¸Áî
+
+    if(my_status == 1)
+    {
+        //·¢ËÍ¿Ï¶¨È·ÈÏÖ¸Áî
+        //	WDZ_GPRS_101Transmit_OKdata();
+        my_txbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_txbuf[6] = DTU_ADDRESS >> 8;
+        my_txbuf[8] = 2;
+        my_txbuf[10] = DTU_ADDRESS & 0X00FF;
+        my_txbuf[11] = DTU_ADDRESS >> 8;
+        my_txbuf[12] = myrsbuf1[12]; //01
+        my_txbuf[13] = myrsbuf1[13]; //70
+        my_txbuf[14] = myrsbuf1[14]; //Ö¸Ê¾Æ÷µØÖ·£¬01,02,03£¬04£¬05,06,07,08,09
+        my_txbuf[15] = myrsbuf1[15]; //02,
+        my_txbuf[16] = myrsbuf1[16]; //70
+        my_txbuf[17] = myrsbuf1[17]; //01ÉèÖÃÊ±¼ä
+        wdz_GPRS_101check_generate(my_txbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+        //my_at_senddata(my_txbuf);  //ÀûÓÃGPRS·µ»ØÈ·ÈÏÖ¸Áî
+        //¿ØÖÆ433¹¤×÷£¬½øĞĞÖ¸Ê¾Æ÷Ê±¼ä²Ù×÷
+
+        status_value = my_txbuf[17];
+
+        if(my_txbuf[14] >= 4 && my_txbuf[14] <= 6)
+            my_address = my_txbuf[14] + 1;
+        else if(my_txbuf[14] >= 7 && my_txbuf[14] <= 9)
+            my_address = my_txbuf[14] + 2;
+        else if(my_txbuf[14] >= 1 && my_txbuf[14] <= 3)
+            my_address = my_txbuf[14] + 0;
+
+        my_status = WDZ_101Transmit_Cycle_analog_time(my_address, status_value);		//¶Ô433Ä£¿é·¢ËÍÖ¸Áî£¬¶¯×÷Ö¸Ê¾Æ÷
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server CycleAnalogTime fail-1\r\n");
+    }
+
+    if(my_status == 1)
+    {
+        USART_printf(&huart3, " Server CycleAnalogTime* %d\r\n", my_address);
+        my_at_senddata(my_txbuf);  //ÀûÓÃGPRS·µ»ØÈ·ÈÏÖ¸Áî
+    }
+    else if(my_status == 0)
+    {
+        USART_printf(&huart3, " Server CycleAnalogTime fail-2\r\n");
+    }
+
+
+
+    return my_status;
+}
+
+/*
+
+¹¦ÄÜ£ºÊµÊ±·¢ËÍÖÜÆÚÊı¾İ£¬Ö±½Ó·¢ËÍ¹ı³ÌÊı¾İ£¬²»´ÓEEPROMÖĞ½øĞĞ¶ÁÈ¡£¬·¢ËÍÍêÊı¾İºóĞŞ¸ÄEEPROMÖĞ¼ÇÂ¼µÄ×´Ì¬£¬Ìõ¼şÊÇÎŞÀúÊ·Êı¾İ·¢ËÍ
+*/
+uint8_t WDZ_GPRS_101transmit_Cycle_realtime_data(void)
+{
+    uint8_t tempbuf[12] = {0};
+    uint32_t startaddressPT = MY_Table2_Cycledata_StartAddress;
+    uint32_t endaddressPT = MY_Table2_Cycledata_EndAddress;
+    uint32_t writeaddressPT = MY_Table2_Cycledata_WriteAddress;
+    uint32_t readaddressPT = MY_Table2_Cycledata_ReadAddress;
+    uint32_t tableaddress = 0;
+    uint8_t rs_temp_buf22[512] = {0}; //²âÊÔÊ¹ÓÃ
+    uint8_t my_status = 0;
+    uint8_t tempstaus = 0;
+    uint8_t my_rxbuf[256] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_testdata;
+
+
+
+//***´¦Àí»ñµÃ×îĞÂµÄ±íÖ¸ÕëµØÖ·
+    SPI_EE_BufferRead2(tempbuf, 213, 12);
+
+    my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
+    MY_Table2_Cycledata_StartAddress = startaddressPT;
+    MY_Table2_Cycledata_EndAddress = endaddressPT;
+    MY_Table2_Cycledata_WriteAddress = writeaddressPT;
+    MY_Table2_Cycledata_ReadAddress = readaddressPT;
+
+//--------------
+//½øĞĞ¶ÁÖ¸ÕëÄ©Î²Ğ£Ñé£¬Èç¹ûµ½ÁËÄ©Î²£¬¾Í·µ»ØÆğÊ¼µØÖ·£¬È»ºóĞ´Èë±íÖĞ
+    if(readaddressPT + 144 > endaddressPT)
+    {   readaddressPT = startaddressPT;
+        MY_Table2_Cycledata_ReadAddress = readaddressPT;
+        tempbuf[0] = readaddressPT & 0x0000ff;
+        tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+        tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+        SPI_EE_BufferWrite2(tempbuf, 222, 3);
+    }
+
+
+//----------------------
+
+
+//----------------
+    if(readaddressPT + 144 == writeaddressPT) //´ËÎª·¢ËÍÌõ¼ş£¬ÎŞÀúÊ·Êı¾İ£¬¶ÁÖ¸ÕëÒÑ¾­ÒÆµ½×îºóÒ»Ìõ¼ÇÂ¼µÄÊ×µØÖ·
+    {
+
+        if(GPRS_Status == 1 && link_status_GPRS == 1)
+            my_status = 1;
+        else
+            my_status = 0;
+
+        wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //ÃÜÂëÖ¸Áî
+        //my_status=WDZ_GPRS_101transmint_commd(2,my_txbuf,2);
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+        if(my_status == 1)
+        {
+            //my_status=WDZ_101receive_testactive(0x03,0x68,0x07,300);
+//***********ÖØÒª****·¢ËÍÖÜÆÚĞÔÊı¾İ****
+//Ö±½Ó´Ó433µÄ¹ı³ÌÊı¾İ´æ´¢µ¥ÔªÖĞ¶ÁÈ¡£¬·Åµ½3¸öÌØ¶¨Êı×éÖĞ£¬È»ºó·¢ËÍ3¸ö101ĞÅÏ¢°ü£¬Ò£ĞÅ£¬Ò£²â¡¢»·¾³£¬´øÊ±±ê¡£
+//µÈ´ıServer¿Ï¶¨È·ÈÏ£¬È·ÈÏºóĞŞ¸ÄEEPROMÖĞÊı¾İ°üµÄGPRS·¢ËÍ×´Ì¬£¬Í¬Ê±ĞŞ¸Ä¶ÁÖ¸ÕëµØÖ·
+
+            //tempstaus=my_eeprom_data_to_cycle_array(); //°ÑÊı¾İ´æÈëµ½GPRS·¢ËÍÊı×éÖĞ*********
+            //MY_433_Call_Single_data_number
+            //MY_433_Call_Analog_data_number
+            //MY_MCU_RsBuf  //8¸ö×Ö½Ú
+            //MY_433_Call_Single_data_buf   2*9=18
+            //MY_433_Call_Analog_data_buf  3*4*9=108    8+18+108=134  134+7=141¼ÓÊ±±ê£¬ 141+3=144¼Ó×´Ì¬¡¢Ò£ĞÅ¸öÊı£¬Ò£²â¸öÊı
+            //MY_433_Call_Time_data_buf  7¸ö×Ö½Ú
+
+            if(MY_MCU_getdata_status == 1)
+                my_buf1_to_buf2(MY_MCU_RsBuf, 0, MY_GPRS_MCU_RsBuf, 0, 8); //»·¾³²ÎÊı
+
+            if(MY_433_Call_Status == 1) //²úÉúÒ£ĞÅ¡¢Ò£²â¡¢Ê±±êÊı¾İ
+            {
+                MY_GPRS_Call_Single_data_number = MY_433_Call_Single_data_number;
+                MY_GPRS_Call_Analog_data_number = MY_433_Call_Analog_data_number;
+                my_buf1_to_buf2(MY_433_Call_Single_data_buf, 0, MY_GPRS_Call_Single_data_buf, 0, MY_GPRS_Call_Single_data_number); //Ò£ĞÅÊı¾İ
+                my_buf1_to_buf2(MY_433_Call_Analog_data_buf, 0, MY_GPRS_Call_Analog_data_buf, 0, MY_GPRS_Call_Analog_data_number * 3); //Ò£²âÊı¾İ
+                my_buf1_to_buf2(MY_433_Call_Time_data_buf, 0, MY_GPRS_Call_Time_data_buf, 0, 7); //Ê±±êÊı¾İ
+            }
+
+            tempstaus = 1;
+            if(tempstaus == 1)
+            {
+                if(MY_433_Call_Status == 1)
+                {
+                    //Éú³É·¢ËÍÊı¾İ°ü£¬·¢ËÍÊı¾İ£¬ÏÈ·¢Ò£ĞÅ¡¢ÔÙ·¢Ò£²â¡¢×îºó·¢»·¾³
+                    //Ò£ĞÅÊı¾İ°ü 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
+                    my_gprs_generate_101single_data(1, my_txbuf);
+                    //my_at_senddata(my_txbuf);
+
+                    //ĞÂÔö
+                    //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+                    //·¢ËÍÒ£ĞÅÊı¾İ
+                    my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+                    if(my_status == 1)
+                    {
+
+                        //Ò£²âÊı¾İ°ü
+                        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+                        my_gprs_generate_101analog_data(1, my_txbuf);
+                        //my_at_senddata(my_txbuf);
+
+                        //ĞÂÔö
+                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+                        //·¢ËÍÒ£²âÊı¾İ
+                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+
+                        //²âÊÔÊ¹ÓÃ£¬¹ı³ÌÊı¾İ@@@@@@@
+
+                        USART_printf(&huart3, "real cycle data to show-433M data\r\n");
+                        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Single_data_buf, 18);
+                        USART_printf(&huart3, rs_temp_buf22);
+                        USART_printf(&huart3, "\r\n");
+                        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Analog_data_buf, 108);
+                        USART_printf(&huart3, rs_temp_buf22);
+                        USART_printf(&huart3, "\r\n");
+                        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Time_data_buf, 7);
+                        USART_printf(&huart3, rs_temp_buf22);
+                        USART_printf(&huart3, "\r\n");
+
+                    }
+                    else
+                    {
+                        my_status = 0;
+                        USART_printf(&huart3, "GPRS real Sing data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+                    }
+                }
+                //·¢ËÍ»·¾³Êı¾İ
+                if(my_status == 1 && MY_MCU_getdata_status == 1)
+                {
+                    //»·¾³Êı¾İ°ü
+                    //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+                    my_gprs_generate_101MCU_data(1, my_txbuf);
+                    //my_at_senddata(my_txbuf);
+                    //ĞÂÔö
+                    //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+                    my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+                    //²âÊÔÊ¹ÓÃ£¬¹ı³ÌÊı¾İ@@@@@@@
+                    USART_printf(&huart3, "real cycle data to show-MCU data\r\n");
+                    HexToStr2(rs_temp_buf22, MY_GPRS_MCU_RsBuf, 8);
+                    USART_printf(&huart3, rs_temp_buf22);
+                    USART_printf(&huart3, "\r\n");
+
+                }
+                else
+                {
+                    my_status = 0;
+                    USART_printf(&huart3, "GPRS real angale data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+                }
+
+                if(my_status == 0)
+                {
+                    USART_printf(&huart3, "GPRS MCU data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+                }
+
+            }
+            else
+            {
+                //Éú²ú¿ÕÊı¾İ°ü£¬·¢ËÍÊı¾İ°ü
+                my_gprs_generate_101single_data(0, my_txbuf);
+                my_at_senddata(my_txbuf);
+                my_gprs_generate_101analog_data(0, my_txbuf);
+                my_at_senddata(my_txbuf);
+                my_gprs_generate_101MCU_data(0, my_txbuf);
+                my_at_senddata(my_txbuf);
+
+            }
+
+            //½ÓÊÕserver·¢À´µÄ¿Ï¶¨È·ÈÏÊı¾İ°ü
+            //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500); //¾ÉµÄ·½°¸£¬²»ÒªÈ·ÈÏµÄ·½°¸
+
+        }
+
+
+        else if(my_status == 0)
+        {
+            USART_printf(&huart3, " Server real Cycle data error3\r\n");
+
+        }
+
+
+
+        if(my_status == 1) //·¢ËÍ³É¹¦ÁË£¬×îÖÕ
+        {
+            //½øĞĞ·¢ËÍÖ¡×´Ì¬×Ö½ÚĞŞ¸Ä£¬ºÍÒÆ¶¯EEPROMµÄ±í¶ÁÖ¸Õë
+            if(tempstaus == 1)
+                my_GPRS_chang_tablereadpt(2, 1); //³É¹¦£¬ĞŞ¸Ä´ËÖ¡×´Ì¬Îª1£¬±íÊ¾·¢ËÍ³öÈ¥ÁË£¬ÒÆ¶¯¶ÁÖ¸Õë
+            else if(tempstaus == 0)
+            {
+                my_GPRS_chang_tablereadpt(2, 0);  //Ê§°Ü£¬ĞŞ¸ÄÎª2£¬Î´·¢ËÍ£¬²»ÒÆ¶¯Ö¸Õë
+                USART_printf(&huart3, " Server real Cycle data errort4-1 \r\n");
+
+            }
+
+            //Delay_us(100);
+            USART_printf(&huart3, " Server real Cycle data OK2*\r\n");
+
+            // LED2_TOGGLE;
+        }
+        else if(my_status == 0)
+        {   //Delay_us(100);
+            USART_printf(&huart3, " Server real Cycle data errort4 \r\n");
+            //LED3_TOGGLE;
+        }
+        //***´¦Àí»ñµÃ×îĞÂµÄ±íÖ¸ÕëµØÖ·
+        SPI_EE_BufferRead2(tempbuf, 213, 12);
+        my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
+        MY_Table2_Cycledata_StartAddress = startaddressPT;
+        MY_Table2_Cycledata_EndAddress = endaddressPT;
+        MY_Table2_Cycledata_WriteAddress = writeaddressPT;
+        MY_Table2_Cycledata_ReadAddress = readaddressPT;
+
+        //½øĞĞ¶ÁÖ¸ÕëÒÆ¶¯
+        if(readaddressPT > writeaddressPT) //½øĞĞ¶ÁÖ¸ÕëĞ£Õı
+        {   readaddressPT = writeaddressPT;
+
+            tempbuf[0] = readaddressPT & 0x0000ff;
+            tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
+            tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
+            tableaddress = 222;
+            SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
+
+        }
+
+
+    }
+
+//½áÊø£¬½øĞĞ·µ»Ø×´Ì¬´¦Àí
+    MY_MCU_getdata_status = 0; //PW»·¾³×ÜÕÙÊı¾İ´¦ÀíÍê³É
+    MY_433_Call_Status = 0;  //433Ä£¿é×ÜÕÙÊı¾İ´¦ÀíÍê³É
+
+    return my_status;
+
+}
+
+
+/*
+
+¹¦ÄÜ£ºÖ»·¢ËÍÖÜÆÚÊı¾İ£¬²»·¢ËÍ433Ä£¿éÊı¾İ
+*/
+uint8_t WDZ_GPRS_101transmit_Cycle_TH_data(void)
+{
+    uint8_t rs_temp_buf22[512] = {0}; //²âÊÔÊ¹ÓÃ
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_testdata;
+    int ii = 0;
+
+//----------------
+
+    if(GPRS_Status == 1 && MY_MCU_getdata_status == 1)
+        my_status = 1;
+    else
+        my_status = 0;
+
+    if(my_status == 1)
+    {
+        wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //ÃÜÂëÖ¸Áî
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+    }
+    if(my_status == 1)
+    {
+
+
+
+        my_buf1_to_buf2(MY_MCU_RsBuf, 0, MY_GPRS_MCU_RsBuf, 0, 8); //»·¾³²ÎÊı
+
+        MY_GPRS_Call_Single_data_number = 0X12;
+        MY_GPRS_Call_Analog_data_number = 0X24;
+        for(ii = 0; ii < 40; ii++)
+            MY_GPRS_Call_Single_data_buf[ii] = 0XEF; //Ä£ÄâÊı¾İ£¬ÓÃ0XEFÀ´±íÊ¾
+        for(ii = 0; ii < 110; ii++)
+            MY_GPRS_Call_Analog_data_buf[ii] = 0XEF;
+        my_RTCtime_to_array(MY_GPRS_Call_Time_data_buf);
+
+        //Éú³É·¢ËÍÊı¾İ°ü£¬·¢ËÍÊı¾İ£¬ÏÈ·¢Ò£ĞÅ¡¢ÔÙ·¢Ò£²â¡¢×îºó·¢»·¾³
+        //Ò£ĞÅÊı¾İ°ü 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
+        my_gprs_generate_101single_data(1, my_txbuf);
+        //·¢ËÍÒ£ĞÅÊı¾İ
+        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+    }
+    if(my_status == 1)
+    {
+
+        //Ò£²âÊı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101analog_data(1, my_txbuf);
+        //·¢ËÍÒ£²âÊı¾İ
+        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+
+        //²âÊÔÊ¹ÓÃ£¬¹ı³ÌÊı¾İ@@@@@@@
+        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Single_data_buf, 18);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Analog_data_buf, 108);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Time_data_buf, 7);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+
+    }
+    else
+    {
+        my_status = 0;
+        USART_printf(&huart3, "GPRS TH Sing data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    //·¢ËÍ»·¾³Êı¾İ
+    if(my_status == 1)
+    {
+        //»·¾³Êı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101MCU_data(1, my_txbuf);
+        //my_at_senddata(my_txbuf);
+        //ĞÂÔö
+        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+        //²âÊÔÊ¹ÓÃ£¬¹ı³ÌÊı¾İ@@@@@@@
+        USART_printf(&huart3, "real TH cycle data to show-MCU data\r\n");
+        HexToStr2(rs_temp_buf22, MY_GPRS_MCU_RsBuf, 8);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+
+    }
+    else
+    {
+        my_status = 0;
+        USART_printf(&huart3, "GPRS real TH angale data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    if(my_status == 0)
+    {
+        USART_printf(&huart3, "GPRS MCU TH data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    if(my_status == 1) //·¢ËÍ³É¹¦ÁË£¬×îÖÕ
+    {
+
+        USART_printf(&huart3, " Server real TH Cycle data OK2*\r\n");
+
+        // LED2_TOGGLE;
+    }
+
+//½áÊø£¬½øĞĞ·µ»Ø×´Ì¬´¦Àí
+    MY_MCU_getdata_status = 0; //PW»·¾³×ÜÕÙÊı¾İ´¦ÀíÍê³É
+    MY_433_Call_Status = 0;  //433Ä£¿é×ÜÕÙÊı¾İ´¦ÀíÍê³É
+
+    return my_status;
+
+}
+
+/*
+°ÑÊÕµ½µÄ×Ö·û×ª»»³ÉASCIIÂë½øĞĞÏÔÊ¾
+*/
+
+void my_display_ASCIIdata(uint8_t *rsbuf)
+{
+//	int tt=0;
+    int length = 0;
+//	uint8_t *mypt=rsbuf;
+//	uint8_t my_temp1,my_temp2;
+    uint8_t desbuf[512] = {0};
+
+    if(*rsbuf == 0x10) length = 6;
+    else if(*rsbuf == 0x68) length = *(rsbuf + 1) + 6;
+
+
+    HexToStr2(desbuf, rsbuf, length);
+    USART_printf(&huart3, desbuf);
+
+    /*
+    for(tt=0;tt<length;tt++)
+    {
+    	my_temp1=*mypt/16;
+    	my_temp2=*mypt%16;
+    	USART_printf(&huart3,"%d%d-",my_temp1,my_temp2);
+    mypt++;
+    }
+    */
+    USART_printf(&huart3, "\r\n");
+
+}
+
+/*
+
+¹¦ÄÜ£º·¢ËÍ433Ä£¿é±»¶¯ÊÕµ½µÄÒ£²âÊı¾İ£¬ÀûÓÃGPRSÍøÂç·¢ËÍ£¬½øĞĞÍ¸Ã÷´«Êä£¬Êı¾İ²»½øĞĞ´æ´¢
+*/
+uint8_t WDZ_GPRS_101transmit_analog_data(void)
+{
+    uint8_t rs_temp_buf22[512] = {0}; //²âÊÔÊ¹ÓÃ
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_testdata;
+    int ii = 0;
+
+//----------------
+
+    if(GPRS_Status == 1 && MY_MCU_getdata_status == 1)
+        my_status = 1;
+    else
+        my_status = 0;
+
+    if(my_status == 1)
+    {
+        wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //ÃÜÂëÖ¸Áî
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+    }
+    if(my_status == 1)
+    {
+
+
+
+        my_buf1_to_buf2(MY_MCU_RsBuf, 0, MY_GPRS_MCU_RsBuf, 0, 8); //»·¾³²ÎÊı
+
+        MY_GPRS_Call_Single_data_number = 0X12;
+        MY_GPRS_Call_Analog_data_number = 0X24;
+        for(ii = 0; ii < 40; ii++)
+            MY_GPRS_Call_Single_data_buf[ii] = 0XEF; //Ä£ÄâÊı¾İ£¬ÓÃ0XEFÀ´±íÊ¾
+        for(ii = 0; ii < 110; ii++)
+            MY_GPRS_Call_Analog_data_buf[ii] = my_433_anlag_buf[ii];	 //»ñÈ¡433±»¶¯½ÓÊÕµÄÄ£ÄâÁ¿
+        my_RTCtime_to_array(MY_GPRS_Call_Time_data_buf);
+
+        //Éú³É·¢ËÍÊı¾İ°ü£¬·¢ËÍÊı¾İ£¬ÏÈ·¢Ò£ĞÅ¡¢ÔÙ·¢Ò£²â¡¢×îºó·¢»·¾³
+        //Ò£ĞÅÊı¾İ°ü 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
+        my_gprs_generate_101single_data(1, my_txbuf);
+        //·¢ËÍÒ£ĞÅÊı¾İ
+        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+    }
+    if(my_status == 1)
+    {
+
+        //Ò£²âÊı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101analog_data(1, my_txbuf);
+        //·¢ËÍÒ£²âÊı¾İ
+        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+
+        //²âÊÔÊ¹ÓÃ£¬¹ı³ÌÊı¾İ@@@@@@@
+        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Single_data_buf, 18);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Analog_data_buf, 108);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+        HexToStr2(rs_temp_buf22, MY_GPRS_Call_Time_data_buf, 7);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+
+    }
+    else
+    {
+        my_status = 0;
+        USART_printf(&huart3, "GPRS ANALOG Sing data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    //·¢ËÍ»·¾³Êı¾İ
+    if(my_status == 1)
+    {
+        //»·¾³Êı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101MCU_data(1, my_txbuf);
+        //my_at_senddata(my_txbuf);
+        //ĞÂÔö
+        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+        //²âÊÔÊ¹ÓÃ£¬¹ı³ÌÊı¾İ@@@@@@@
+        USART_printf(&huart3, "real ANALOG cycle data to show-MCU data\r\n");
+        HexToStr2(rs_temp_buf22, MY_GPRS_MCU_RsBuf, 8);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+
+    }
+    else
+    {
+        my_status = 0;
+        USART_printf(&huart3, "GPRS real ANALOG angale data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    if(my_status == 0)
+    {
+        USART_printf(&huart3, "GPRS MCU ANALOG data error\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    if(my_status == 1) //·¢ËÍ³É¹¦ÁË£¬×îÖÕ
+    {
+
+        USART_printf(&huart3, " Server real ANALOG Cycle data OK2*\r\n");
+
+        // LED2_TOGGLE;
+    }
+
+//½áÊø£¬½øĞĞ·µ»Ø×´Ì¬´¦Àí
+    MY_MCU_getdata_status = 0; //PW»·¾³×ÜÕÙÊı¾İ´¦ÀíÍê³É
+    MY_433_Call_Status = 0;  //433Ä£¿é×ÜÕÙÊı¾İ´¦ÀíÍê³É
+
+    return my_status;
+
+}
+
+/*
+¹¦ÄÜ£º·¢ËÍAT+CSQ£¬·¢ËÍĞÅºÅÖÊÁ¿
+
+*/
+
+extern uint8_t MY_AT_CSQ_Value;
+int my_GPRS_AT_CSQ()
+{
+
+    uint8_t rs_temp_buf22[512] = {0}; //²âÊÔÊ¹ÓÃ
+    uint8_t my_status = 0;
+    uint8_t my_rxbuf[256] = "\x10\x80\x01\x00\x81\x16";
+    uint8_t my_txbuf[256] = TX_GPRS_101_testdata;
+
+
+//----------------
+
+    if(GPRS_Status == 1)
+        my_status = 1;
+    else
+        my_status = 0;
+
+    if(my_status == 1)
+    {
+        wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //ÃÜÂëÖ¸Áî
+        my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+    }
+
+
+
+    //·¢ËÍ»·¾³Êı¾İ
+    if(my_status == 1)
+    {
+        //»·¾³Êı¾İ°ü
+        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
+        my_gprs_generate_101CSQ_data(1, my_txbuf);
+        //my_at_senddata(my_txbuf);
+        //ĞÂÔö
+        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
+        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
+
+        //²âÊÔÊ¹ÓÃ£¬¹ı³ÌÊı¾İ@@@@@@@
+        USART_printf(&huart3, "GRPS CSQ:");
+        HexToStr2(rs_temp_buf22, my_txbuf, 18);
+        USART_printf(&huart3, rs_temp_buf22);
+        USART_printf(&huart3, "\r\n");
+
+    }
+    else
+    {
+        my_status = 0;
+        USART_printf(&huart3, "GPRS GRPS CSQ error1\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    if(my_status == 0)
+    {
+        USART_printf(&huart3, "GPRS GRPS CSQ error2\r\n"); //µ÷ÊÔÊ¹ÓÃ
+    }
+
+    if(my_status == 1) //·¢ËÍ³É¹¦ÁË£¬×îÖÕ
+    {
+
+        USART_printf(&huart3, " GRPS CSQ OK1*\r\n");
+
+        // LED2_TOGGLE;
+    }
+
+//½áÊø£¬½øĞĞ·µ»Ø×´Ì¬´¦Àí
+
+    return my_status;
+
+}
+
+/*
+¹¦ÄÜ£º²úÉúGPRSĞÅºÅÖÊÁ¿
+*/
+void my_gprs_generate_101CSQ_data(uint8_t temp, uint8_t *my_rsbuf)
+{
+    uint8_t length = 0;
+
+    if(temp == 1) //Éú³ÉÊı¾İ°ü
+    {
+        length = 1;
+
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length * 2 + 10;
+        my_rsbuf[2] = length * 2 + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x42;
+
+        //my_buf1_to_buf2(MY_GPRS_MCU_RsBuf,0,my_rsbuf,14,length*2);
+
+        my_rsbuf[14] = MY_AT_CSQ_Value;
+        my_rsbuf[15] = 0X00;
+
+        //
+        my_rsbuf[13 + length * 2 + 1] = 0XFF;
+        my_rsbuf[13 + length * 2 + 1 + 1] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+
+
+    }
+    else if(temp == 0) //Éú³É0Êı¾İÌåÊı¾İ°ü
+    {
+        length = 2;
+        my_rsbuf[0] = 0x68;
+        my_rsbuf[3] = 0x68;
+        my_rsbuf[1] = length + 10;
+        my_rsbuf[2] = length + 10;
+
+        my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+        my_GPRS_101_geneate_FCBword(my_rsbuf);
+
+        my_rsbuf[5] = DTU_ADDRESS & 0X00FF;
+        my_rsbuf[6] = (DTU_ADDRESS >> 8) & 0X00FF;
+
+        my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+        my_rsbuf[8] = 0x84; //ĞÅÏ¢Ìå¸öÊı
+        my_rsbuf[9] = 0x14; //´«ÊäÔ­Òò
+
+        my_rsbuf[10] = DTU_ADDRESS & 0X00FF; //¹«¹²ÓòµØÖ·
+        my_rsbuf[11] = (DTU_ADDRESS >> 8) & 0X00FF;;
+
+        my_rsbuf[12] = 0x00; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+        my_rsbuf[13] = 0x42;
+
+        my_rsbuf[14] = 0x00;
+        my_rsbuf[15] = 0x00;
+
+        my_rsbuf[16] = 0XFF;
+        my_rsbuf[17] = 0x16;
+
+        wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+    }
+
+
+}
+
+/*
+¹¦ÄÜ£ºÒ£²â²¹³ä
+*/
+void my_gprs_generate_101yaoce2_data(uint8_t *my_rsbuf)
+{
+    uint8_t length = 12; //ĞÅÏ¢Ìå¸öÊı
+    uint8_t jj = 0;
+    //Ö¡Í·
+    my_rsbuf[0] = 0x68;
+    my_rsbuf[3] = 0x68;
+    my_rsbuf[1] = length * 2 + 10;
+    my_rsbuf[2] = length * 2 + 10;
+    //¿ØÖÆÓò²¿·Ö
+    my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+    //my_GPRS_101_geneate_FCBword(my_rsbuf);
+    my_rsbuf[5] = DTU_ADDRESS;
+    my_rsbuf[6] = (DTU_ADDRESS >> 8);
+    my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+    my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+    my_rsbuf[9] = 0x67; //´«ÊäÔ­Òò
+    my_rsbuf[10] = DTU_ADDRESS; //¹«¹²ÓòµØÖ·
+    my_rsbuf[11] = (DTU_ADDRESS >> 8);;
+    my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+    my_rsbuf[13] = 0x42;
+    //Ö¡Î²
+    my_rsbuf[13 + length * 2 + 1] = 0XFF;
+    my_rsbuf[13 + length * 2 + 1 + 1] = 0x16;
+    //Êı¾İ²¿·Ö
+    for(jj = 0; jj < 3; jj++)
+    {   //1ÎÂ¶È£¬2µçÔ´£¬3²Î¿¼µçÑ¹£¬4¸Éµç³Ø£¬5ÏßÉÏµçÑ¹£¬6Ì«ÑôÄÜ£¬7ï®µç³Ø
+        my_rsbuf[14 + 12 * jj] = my_indicator_data[jj].DC_data_buf[5 * 2]; //6Ì«ÑôÄÜ
+        my_rsbuf[15 + 12 * jj] = my_indicator_data[jj].DC_data_buf[5 * 2 + 1];
+
+        my_rsbuf[16 + 12 * jj] = my_indicator_data[jj].DC_data_buf[4 * 2]; //5ÏßÉÏµçÑ¹
+        my_rsbuf[17 + 12 * jj] = my_indicator_data[jj].DC_data_buf[4 * 2 + 1];
+
+
+        my_rsbuf[18 + 12 * jj] = my_indicator_data[jj].DC_data_buf[3 * 2]; //4¸Éµç³Ø
+        my_rsbuf[19 + 12 * jj] = my_indicator_data[jj].DC_data_buf[3 * 2 + 1];
+
+
+        my_rsbuf[20 + 12 * jj] = my_indicator_data[jj].AC_data_buf[2 * 2]; //°ë²¨µçÁ÷Öµ
+        my_rsbuf[21 + 12 * jj] = my_indicator_data[jj].AC_data_buf[2 * 2 + 1];
+
+    }
+
+    wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+}
+
+/*
+¹¦ÄÜ£ºÒ£²â12T
+*/
+void my_gprs_generate_101yaoce12T_data(uint8_t *my_rsbuf)
+{
+    uint8_t length = 3; //ĞÅÏ¢Ìå¸öÊı
+    uint8_t jj = 0, ii = 0;
+    //Ö¡Í·
+    my_rsbuf[0] = 0x68;
+    my_rsbuf[3] = 0x68;
+    my_rsbuf[1] = length * 48 + 10;
+    my_rsbuf[2] = length * 48 + 10;
+    //¿ØÖÆÓò²¿·Ö
+    my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+    //my_GPRS_101_geneate_FCBword(my_rsbuf);
+    my_rsbuf[5] = DTU_ADDRESS;
+    my_rsbuf[6] = (DTU_ADDRESS >> 8);
+    my_rsbuf[7] = 0X09; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+    my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+    my_rsbuf[9] = 0x68; //´«ÊäÔ­Òò
+    my_rsbuf[10] = DTU_ADDRESS; //¹«¹²ÓòµØÖ·
+    my_rsbuf[11] = (DTU_ADDRESS >> 8);;
+    my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+    my_rsbuf[13] = 0x43;
+    //Ö¡Î²
+    my_rsbuf[13 + length * 2 + 1] = 0XFF;
+    my_rsbuf[13 + length * 2 + 1 + 1] = 0x16;
+    //Êı¾İ²¿·Ö
+    for(jj = 0; jj < 3; jj++)
+    {   //12T µçÁ÷+µç³¡
+        for(ii = 0; ii < 12; ii++)
+        {
+            my_rsbuf[14 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_Current_data_buf[ii * 2]; //µçÁ÷
+            my_rsbuf[15 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_Current_data_buf[ii * 2 + 1];
+
+            my_rsbuf[16 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_dianchang_data_buf[ii * 2]; //µç³¡
+            my_rsbuf[17 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_dianchang_data_buf[ii * 2 + 1];
+
+
+        }
+
+    }
+
+    wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+}
+/*
+¹¦ÄÜ£º¼ÆÊıÍ¬²½Öµ
+*/
+void my_gprs_generate_101yaoce1_COUNTSYN_data(uint8_t *my_rsbuf)
+{
+    uint8_t length = 1; //ĞÅÏ¢Ìå¸öÊı
+    
+    //Ö¡Í·
+    my_rsbuf[0] = 0x68;
+    my_rsbuf[3] = 0x68;
+    my_rsbuf[1] = length * 9 + 10;
+    my_rsbuf[2] = length * 9 + 10;
+    //¿ØÖÆÓò²¿·Ö
+    my_rsbuf[4] = 0x73; //¿ØÖÆÓòÂëÎª53/73
+    //my_GPRS_101_geneate_FCBword(my_rsbuf);
+    my_rsbuf[5] = DTU_ADDRESS;
+    my_rsbuf[6] = (DTU_ADDRESS >> 8);
+    my_rsbuf[7] = 0XDC; //ÀàĞÍ±êÊ¶£¬´øÊ±±êµÄµ¥µãĞÅÏ¢£¬
+    my_rsbuf[8] = length + 0x80; //ĞÅÏ¢Ìå¸öÊı
+    my_rsbuf[9] = 0x69; //´«ÊäÔ­Òò
+    my_rsbuf[10] = DTU_ADDRESS; //¹«¹²ÓòµØÖ·
+    my_rsbuf[11] = (DTU_ADDRESS >> 8);;
+    my_rsbuf[12] = 0x01; //Ò£ĞÅĞÅÏ¢ÌåÊ×µØÖ·
+    my_rsbuf[13] = 0x4F;
+    //Ö¡Î²
+    my_rsbuf[13 + length * 9 + 1] = 0XFF;
+    my_rsbuf[13 + length * 9 + 1 + 1] = 0x16;
+    //Êı¾İ²¿·Ö
+
+
+    my_rsbuf[14] = my_indicator_data[0].count_time[0];
+    my_rsbuf[15] = my_indicator_data[0].count_time[1];
+
+    my_rsbuf[16] = my_indicator_data[0].data_time_buf[0];
+    my_rsbuf[17] = my_indicator_data[0].data_time_buf[1];
+    my_rsbuf[18] = my_indicator_data[0].data_time_buf[2];
+    my_rsbuf[19] = my_indicator_data[0].data_time_buf[3];
+    my_rsbuf[20] = my_indicator_data[0].data_time_buf[4];
+    my_rsbuf[21] = my_indicator_data[0].data_time_buf[5];
+    my_rsbuf[22] = my_indicator_data[0].data_time_buf[6];
+
+
+
+
+    wdz_GPRS_101check_generate(my_rsbuf); //Éú³ÉĞ£Ñé×Ö½Ú
+
+}

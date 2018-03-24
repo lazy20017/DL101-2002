@@ -1,0 +1,59 @@
+#include "gpio.h"
+
+#include "my_time.h"
+#include "bsp_led.h"
+#include "my_def_value.h"
+#include "my_extrn_value.h"
+#include "my_usart.h"
+#include "my_OS.h"
+
+
+
+
+
+uint16_t my_tim6_count=0;
+uint16_t my_tim6_old_count=0;
+extern uint16_t my_os_count1;
+extern osMessageQId myQueue01Handle;
+void HAL_TIM_PeriodElapsedCallback2(TIM_HandleTypeDef *htim)
+{
+
+
+    my_tim6_count++; //1秒钟的计时器
+    if(my_tim6_count%7==0 && my_tim6_count!=0)
+    {
+        my_tim6_old_count=my_os_count1;
+    }
+    else if(my_tim6_count%13==0 && my_tim6_count!=0 &&my_tim6_count%7!=0)
+    {
+        if(my_tim6_old_count==my_os_count1)
+        {
+            printf("\n  OS is stop \n");
+        }
+
+    }
+
+    //GPRS 周期发送
+    if(my_tim6_count%MY_ACT_CYC_DTU==0 && my_tim6_count!=0 && my_GPRS_all_step==0 && my_gprs_TX_status==0 )
+    {
+        my_gprs_TX_status=1;
+        my_fun_give_Queue(&myQueue01Handle,0XB100);
+        printf("====GPRS CYC time =%d\r\n",my_os_count1);
+    }
+    //GPRS主动发送数据，心跳服务器，发送到01号队列，对应04号任务
+    if(my_tim6_count % (MY_ACT_Heart_DTU) == 0 && my_tim6_count != 0  && my_GPRS_all_step==0 && my_gprs_TX_status==0)
+    {
+        my_gprs_TX_status=1;
+        my_fun_give_Queue(&myQueue01Handle,0X1F00);
+        printf("====GPRS Heart time =%d\r\n",my_os_count1);
+    }
+
+    LED6_TOGGLE;
+}
+
+
+//********WDZ 开定时，开始计时tme时间
+
+
+
+

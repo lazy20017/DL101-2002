@@ -1,0 +1,82 @@
+#ifndef __LED_H
+#define	__LED_H
+
+//#include "stm32f1xx_hal.h"
+//#include "bsp_SysTick.h"
+#include "stm32f1xx_hal.h"
+/** the macro definition to trigger the led on or off 
+  * 1 - off
+  *0 - on
+  */
+#define ON  0
+#define OFF 1
+
+
+
+
+/* 直接操作寄存器的方法控制IO */
+#define	digitalHi(p,i)			{p->BSRR=i;}			//设置为高电平		
+#define digitalLo(p,i)			{p->BRR=i;}				//输出低电平
+#define digitalToggle(p,i)		{p->ODR ^=i;}			//输出反转状态
+
+
+/* 定义控制IO的宏 */
+#define EEPROM_NSS1_TOGGLE		digitalToggle(GPIOA,GPIO_PIN_4)
+#define EEPROM_NSS1_OFF				digitalHi(GPIOA,GPIO_PIN_4)
+#define EEPROM_NSS1_ON				digitalLo(GPIOA,GPIO_PIN_4)      //低电平选通，工作
+
+#define EEPROM_NSS2_TOGGLE		digitalToggle(GPIOC,GPIO_PIN_4)
+#define EEPROM_NSS2_OFF				digitalHi(GPIOC,GPIO_PIN_4)
+#define EEPROM_NSS2_ON				digitalLo(GPIOC,GPIO_PIN_4)     //低电平选通，工作
+
+#define M35_PWR_TOGGLE				digitalToggle(GPIOA,GPIO_PIN_11)
+#define M35_PWR_ON						digitalHi(GPIOA,GPIO_PIN_11)  //高电平，M35管脚三极管导通，输入低电平，关机或开机
+#define M35_PWR_OFF						digitalLo(GPIOA,GPIO_PIN_11)  //低电平，正常工作，悬空
+
+#define M35_EMERG_TOGGLE			digitalToggle(GPIOA,GPIO_PIN_12)
+#define M35_EMERG_ON					digitalHi(GPIOA,GPIO_PIN_12)  //高电平，M35管脚三极管导通，输入低电平，紧急关机
+#define M35_EMERG_OFF					digitalLo(GPIOA,GPIO_PIN_12)  //低电平，正常工作，悬空
+
+#define LED1_TOGGLE						digitalToggle(GPIOB,GPIO_PIN_12)
+#define LED1_OFF							digitalHi(GPIOB,GPIO_PIN_12)
+#define LED1_ON								digitalLo(GPIOB,GPIO_PIN_12)   //低电平选通，工作，点亮LED
+
+#define LED2_TOGGLE						digitalToggle(GPIOB,GPIO_PIN_13)
+#define LED2_OFF							digitalHi(GPIOB,GPIO_PIN_13)
+#define LED2_ON								digitalLo(GPIOB,GPIO_PIN_13)
+
+#define LED3_TOGGLE						digitalToggle(GPIOB,GPIO_PIN_14)
+#define LED3_OFF							digitalHi(GPIOB,GPIO_PIN_14)
+#define LED3_ON								digitalLo(GPIOB,GPIO_PIN_14)
+
+#define LED4_TOGGLE						digitalToggle(GPIOB,GPIO_PIN_15)
+#define LED4_OFF							digitalHi(GPIOB,GPIO_PIN_15)
+#define LED4_ON								digitalLo(GPIOB,GPIO_PIN_15)
+
+#define LED5_TOGGLE						digitalToggle(GPIOC,GPIO_PIN_0)
+#define LED5_OFF							digitalHi(GPIOC,GPIO_PIN_0)
+#define LED5_ON								digitalLo(GPIOC,GPIO_PIN_0)
+
+#define LED6_TOGGLE						digitalToggle(GPIOC,GPIO_PIN_1)
+#define LED6_OFF							digitalHi(GPIOC,GPIO_PIN_1)
+#define LED6_ON								digitalLo(GPIOC,GPIO_PIN_1)
+
+#define SPEAKER_TOGGLE				digitalToggle(GPIOC,GPIO_PIN_2) //高电平有效，喇叭放音，低电平不放音
+#define SPEAKER_ON						digitalHi(GPIOC,GPIO_PIN_2) //开声音
+#define SPEAKER_OFF						digitalLo(GPIOC,GPIO_PIN_2)   //关声音
+
+#define WDI1_TOGGLE						digitalToggle(GPIOC,GPIO_PIN_5)  //喂狗3-5s，高低翻转
+#define WDI1_OFF							digitalHi(GPIOC,GPIO_PIN_5)
+#define WDI1_ON								digitalLo(GPIOC,GPIO_PIN_5)
+
+#define M35_PWREN_CONTROL_TOGGLE			digitalToggle(GPIOC,GPIO_PIN_7)  //高电平正常工作，低电平断电
+#define M35_PWREN_CONTROL_ON					digitalHi(GPIOC,GPIO_PIN_7)  //上电工作
+#define M35_PWREN_CONTROL_OFF					digitalLo(GPIOC,GPIO_PIN_7)  //断电不工作
+
+
+void LED_GPIO_Config(void);
+
+void my_speaker_long_voice(uint16_t mytime);
+void my_speaker_short_cycle_voice(uint8_t number,uint16_t shorttime);
+
+#endif /* __LED_H */

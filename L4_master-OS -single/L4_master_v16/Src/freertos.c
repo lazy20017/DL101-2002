@@ -1,0 +1,902 @@
+/**
+  ******************************************************************************
+  * File Name          : freertos.c
+  * Description        : Code for freertos applications
+  ******************************************************************************
+  * This notice applies to any and all portions of this file
+  * that are not between comment pairs USER CODE BEGIN and
+  * USER CODE END. Other portions of this file, whether
+  * inserted by the user or by software development tools
+  * are owned by their respective copyright owners.
+  *
+  * Copyright (c) 2017 STMicroelectronics International N.V.
+  * All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted, provided that the following conditions are met:
+  *
+  * 1. Redistribution of source code must retain the above copyright notice,
+  *    this list of conditions and the following disclaimer.
+  * 2. Redistributions in binary form must reproduce the above copyright notice,
+  *    this list of conditions and the following disclaimer in the documentation
+  *    and/or other materials provided with the distribution.
+  * 3. Neither the name of STMicroelectronics nor the names of other
+  *    contributors to this software may be used to endorse or promote products
+  *    derived from this software without specific written permission.
+  * 4. This software, including modifications and/or derivative works of this
+  *    software, must execute solely and exclusively on microcontroller or
+  *    microprocessor devices manufactured by or for STMicroelectronics.
+  * 5. Redistribution and use of this software other than as permitted under
+  *    this license is void and will automatically terminate your rights under
+  *    this license.
+  *
+  * THIS SOFTWARE IS PROVIDED BY STMICROELECTRONICS AND CONTRIBUTORS "AS IS"
+  * AND ANY EXPRESS, IMPLIED OR STATUTORY WARRANTIES, INCLUDING, BUT NOT
+  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  * PARTICULAR PURPOSE AND NON-INFRINGEMENT OF THIRD PARTY INTELLECTUAL PROPERTY
+  * RIGHTS ARE DISCLAIMED TO THE FULLEST EXTENT PERMITTED BY LAW. IN NO EVENT
+  * SHALL STMICROELECTRONICS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+  * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  *
+  ******************************************************************************
+  */
+
+/* Includes ------------------------------------------------------------------*/
+#include "FreeRTOS.h"
+#include "task.h"
+#include "cmsis_os.h"
+
+/* USER CODE BEGIN Includes */
+#include "my_led.h"
+#include "my_101.h"
+//#include "my_cc1101.h"
+#include "my_OS.h"
+#include "bsp_iap.h"
+#include "my_DAC.h"
+/* USER CODE END Includes */
+
+/* Variables -----------------------------------------------------------------*/
+osThreadId defaultTaskHandle;
+osThreadId myTask02Handle;
+osThreadId myTask03Handle;
+osThreadId myTask04Handle;
+osThreadId myTask08Handle;
+osMessageQId myQueue01Handle;
+osMessageQId myQueue02Handle;
+osTimerId myTimer01Handle;
+osMutexId myMutex01Handle;
+
+/* USER CODE BEGIN Variables */
+extern uint16_t my_wave_write_add;
+
+extern uint16_t my_dianliu_exit_add;
+//extern uint16_t my_Time_Cyc_exit_add;
+extern uint8_t my_DC_AC_status;
+extern uint8_t my_CC1101_Frame_status;
+extern uint8_t my_CC1101_COM_Fram_buf[];
+extern uint16_t  my_CC1101_all_step;
+extern uint16_t my_PWR_all_step;
+
+
+extern uint8_t my_IT_status;
+extern uint8_t my_IT_Count;
+extern  uint8_t my_Fault_Current_End_Status ; //
+extern  uint8_t my_Fault_E_Fild_End_Status ; //
+extern TIM_HandleTypeDef htim6;
+extern double ADC1_Filer_value_buf[];
+extern double ADC2_Filer_value_buf_2[ADC2_COLM][3];
+
+uint16_t   my_os_count1 = 0;
+uint8_t 	my_exit_status_count = 0;
+
+EventGroupHandle_t xCreatedEventGroup = NULL;
+EventGroupHandle_t xCreatedEventGroup2 = NULL;
+
+uint8_t my_use_cyc_rec_data_status = 0; //是否进行周期录波数据发送，1为发送，0为不发送
+uint8_t my_use_alarm_rec_data_status = 1; //是否进行周期录波数据发送，1为发送，0为不发送
+uint8_t my_use_alarm_rec_data_status_Efild = 1;
+
+uint16_t my_que1_wait_time = 1000; //队列1的等待时间
+
+/* USER CODE END Variables */
+
+/* Function prototypes -------------------------------------------------------*/
+void StartDefaultTask(void const * argument);
+void StartTask02(void const * argument);
+void StartTask03(void const * argument);
+void StartTask04(void const * argument);
+void StartTask08(void const * argument);
+void Callback01(void const * argument);
+
+void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/* USER CODE BEGIN FunctionPrototypes */
+
+/* USER CODE END FunctionPrototypes */
+
+/* Pre/Post sleep processing prototypes */
+void PreSleepProcessing(uint32_t *ulExpectedIdleTime);
+void PostSleepProcessing(uint32_t *ulExpectedIdleTime);
+
+/* Hook prototypes */
+
+/* USER CODE BEGIN PREPOSTSLEEP */
+__weak void PreSleepProcessing(uint32_t *ulExpectedIdleTime)
+{
+    /* place for user code */
+}
+
+__weak void PostSleepProcessing(uint32_t *ulExpectedIdleTime)
+{
+    /* place for user code */
+}
+/* USER CODE END PREPOSTSLEEP */
+
+/* Init FreeRTOS */
+
+void MX_FREERTOS_Init(void) {
+    /* USER CODE BEGIN Init */
+
+    /* USER CODE END Init */
+
+    /* Create the mutex(es) */
+    /* definition and creation of myMutex01 */
+    osMutexDef(myMutex01);
+    myMutex01Handle = osMutexCreate(osMutex(myMutex01));
+
+    /* USER CODE BEGIN RTOS_MUTEX */
+    /* add mutexes, ... */
+    /* USER CODE END RTOS_MUTEX */
+
+    /* USER CODE BEGIN RTOS_SEMAPHORES */
+    /* add semaphores, ... */
+    /* USER CODE END RTOS_SEMAPHORES */
+
+    /* Create the timer(s) */
+    /* definition and creation of myTimer01 */
+    osTimerDef(myTimer01, Callback01);
+    myTimer01Handle = osTimerCreate(osTimer(myTimer01), osTimerPeriodic, NULL);
+
+    /* USER CODE BEGIN RTOS_TIMERS */
+    /* start timers, add new ones, ... */
+    osTimerStart(myTimer01Handle, 1000); //默认设置的优先级是6级
+    //	osTimerStart(myTimer02Handle, 240);
+    /* USER CODE END RTOS_TIMERS */
+
+    /* Create the thread(s) */
+    /* definition and creation of defaultTask */
+    osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 256);
+    defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+    /* definition and creation of myTask02 */
+    osThreadDef(myTask02, StartTask02, osPriorityNormal, 0, 256);
+    myTask02Handle = osThreadCreate(osThread(myTask02), NULL);
+
+    /* definition and creation of myTask03 */
+    osThreadDef(myTask03, StartTask03, osPriorityNormal, 0, 256);
+    myTask03Handle = osThreadCreate(osThread(myTask03), NULL);
+
+    /* definition and creation of myTask04 */
+    osThreadDef(myTask04, StartTask04, osPriorityAboveNormal, 0, 256);
+    myTask04Handle = osThreadCreate(osThread(myTask04), NULL);
+
+    /* definition and creation of myTask08 */
+    osThreadDef(myTask08, StartTask08, osPriorityIdle, 0, 384);
+    myTask08Handle = osThreadCreate(osThread(myTask08), NULL);
+
+    /* USER CODE BEGIN RTOS_THREADS */
+    /* add threads, ... */
+    /* USER CODE END RTOS_THREADS */
+
+    /* Create the queue(s) */
+    /* definition and creation of myQueue01 */
+    osMessageQDef(myQueue01, 3, uint16_t);
+    myQueue01Handle = osMessageCreate(osMessageQ(myQueue01), NULL);
+
+    /* definition and creation of myQueue02 */
+    osMessageQDef(myQueue02, 3, uint16_t);
+    myQueue02Handle = osMessageCreate(osMessageQ(myQueue02), NULL);
+
+    /* USER CODE BEGIN RTOS_QUEUES */
+
+    xCreatedEventGroup = xEventGroupCreate();
+    xCreatedEventGroup2 = xEventGroupCreate();
+    /* add queues, ... */
+    /* USER CODE END RTOS_QUEUES */
+}
+
+/* StartDefaultTask function */
+void StartDefaultTask(void const * argument)
+{
+
+    /* USER CODE BEGIN StartDefaultTask */
+    //串口拥塞后恢复程序
+    __HAL_GPIO_EXTI_CLEAR_IT(PIN_CC_IRQ);
+    HAL_NVIC_EnableIRQ(EXIT_CC_IRQ_GD0); //开启中断，接收CC1101数据产生
+
+    /* Infinite loop */
+    for(;;)
+    {
+        if(my_CC1101_all_step == 0)
+        {
+            //==CC1101
+            my_fun_CC1101_init_resume();
+            if(my_CC1101_Sleep_status == 1)
+            {
+                CC1101SetSleep();
+            }
+
+            //====串口	==
+            my_fun_usart_init_resume(); //串口拥塞后恢复程序
+        }
+
+        if( my_DTU_send_faile_count >= 3)
+        {
+            my_fun_CC1101_init_reum();
+        }
+
+        osDelay(33000);
+    }
+    /* USER CODE END StartDefaultTask */
+}
+
+/* StartTask02 function */
+void StartTask02(void const * argument)
+{
+    /* USER CODE BEGIN StartTask02 */
+    /* Infinite loop */
+    //CC1101发送处理部分
+
+    BaseType_t my_result = 0;
+    uint16_t my_step = 0;
+    for(;;)
+    {
+        //==CC1101 发送数据环节，对应队列1
+
+        my_result = xQueueReceive(myQueue01Handle, &my_step, my_que1_wait_time); //xQueuePeek
+        //my_result = xQueueReceive(myQueue01Handle, &my_step, 10000); //xQueuePeek
+        if(my_result == pdPASS)
+        {
+            printf("=========CC1101 CC_T_QU1 IS send=[%X]--------\r\n", my_step);
+        }
+        else
+        {
+            my_step = 0X00;
+
+            //printf("QH1 error re = %d, step=%d \r\n",my_result,my_step);
+
+        }
+
+
+
+
+        //====0 DTU 在线升级--发送部分
+        my_fun_CC1101_time_dialog_tx2(my_step, 0xF000, 0xF100, 0, my_fun_CC1101_test1,3);
+        my_fun_CC1101_time_dialog_tx2(my_step, 0xF200, 0xF300, 0, my_fun_CC1101_test1,3);
+        my_fun_CC1101_time_dialog_tx2(my_step, 0xF400, 0xF500, 0, my_fun_CC1101_test1,3);
+        my_fun_CC1101_time_dialog_tx2(my_step, 0xF600, 0xF700, 0, my_fun_CC1101_test1,3);
+        my_fun_CC1101_time_dialog_tx2(my_step, 0xF800, 0xF900, 1, my_fun_CC1101_test1,3);
+
+
+        //=====主动发送心跳帧，请求参数设置
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x0000, 0x00E0, 0, my_fun_TX_CC1101_heart,3);  //心跳
+        //==请求参数设置
+        my_fun_CC1101_time_dialog_tx2(my_step, 	0x0000, 0x00E1, 0, 	my_fun_TX_CC1101_config,3);  //请求参数设置
+        my_fun_CC1101_time_dialog_tx2(my_step,	0x0000,	0X00E2,	1,	my_fun_TX_CC1101_config2,3); //确认设置参数
+
+
+        //=====2 发送周期数据
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x0000, 0x0001, 0, my_fun_TX_CC1101_test0,3);//遥信
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0040, 0, my_fun_TX_CC1101_test1,3);//DC，共7个分量
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0041, 0, my_fun_TX_CC1101_test2,3);//AC有效值，3个分量，电流，电场，半波
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0042, 0, my_fun_TX_CC1101_test3,3);//AC12T
+//				if(my_use_cyc_rec_data_status==1)
+//        my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0043, 0, my_fun_TX_CC1101_test4);//录波
+
+        //====1 发送报警数据
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x0000, 0x0002, 0, my_fun_TX_CC1101_test0,2); //遥信
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0050, 0, my_fun_TX_CC1101_test1,2); //遥测DC
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0051, 0, my_fun_TX_CC1101_test2,2); //遥测AC，线上电流，电场、半波的有效值，就3个值
+        my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0052, 0, my_fun_TX_CC1101_test3,2); //遥测12TAC
+        if(my_use_alarm_rec_data_status == 1)
+            my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0053, 0, my_fun_TX_CC1101_test4,2); //录波_电流
+        if(my_use_alarm_rec_data_status_Efild == 1)
+            my_fun_CC1101_time_dialog_tx2(my_step, 0x2000, 0x0054, 0, my_fun_TX_CC1101_test5,2); //录波_电场
+
+        //======3 参数设置部分
+
+
+
+        //LED2_TOGGLE;
+        //osDelay(20000);
+    }
+    /* USER CODE END StartTask02 */
+}
+
+/* StartTask03 function */
+void StartTask03(void const * argument)
+{
+    /* USER CODE BEGIN StartTask03 */
+    //CC1101接收处理程序
+
+    /* Infinite loop */
+    BaseType_t my_result;
+    uint16_t my_step;
+    for(;;)
+    {
+        //CC1101接收数据环节，对应队列2
+        my_result = xQueueReceive(myQueue02Handle, &my_step, 2000); //xQueuePeek,队列2对应，M35接收队列
+        if(my_result == pdPASS)
+        {
+            printf("-------CC1101 CC_R_QU2 receive=[%X]\r\n", my_step);
+        }
+        else
+        {
+            //printf("CC1101 not receive step = %d\r\n",my_step);
+            my_step = 0X0000;
+        }
+
+
+        //====DTU在线升级--接收部分--
+
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0000, 0xF000, 0xF100, 0, my_fun_write_update_data_to_FLASH);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0000, 0xF200, 0xF300, 0, my_fun_write_update_data_to_FLASH);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0000, 0xF400, 0xF500, 0, my_fun_write_update_data_to_FLASH);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0000, 0xF600, 0xF700, 0, my_fun_write_update_data_to_FLASH);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0000, 0xF800, 0xF900, 0, my_fun_write_update_data_to_FLASH);
+        //=====心跳帧
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x00E0, 0x2000, 0x0000, 1, my_fun_RX_CC1101_text0_RX_OK);
+        //==请求参数设置
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x00E1, 0xE100, 0x00E2, 0, my_fun_RX_CC1101_text0_RX_OK);//接收到参数设置命令
+        //======周期接收部分===
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0001, 0x2000, 0x0040, 0, my_fun_RX_CC1101_text0_RX_OK);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0040, 0x2000, 0x0041, 0, my_fun_RX_CC1101_text0_RX_OK);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0041, 0x2000, 0x0042, 0, my_fun_RX_CC1101_text0_RX_OK);
+//				if(my_use_cyc_rec_data_status==1)
+//				{
+//				my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0042, 0x2000, 0x0043, 0, my_fun_RX_CC1101_text0_RX_OK);
+//				my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0043, 0x2000, 0x0000, 1, my_fun_RX_CC1101_text0_RX_OK);
+//				}
+//				else
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0042, 0x2000, 0x0000, 1, my_fun_RX_CC1101_text0_RX_OK);
+
+
+        //======  报警接收  ==
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0002, 0x2000, 0x0050, 0, my_fun_RX_CC1101_text0_RX_OK);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0050, 0x2000, 0x0051, 0, my_fun_RX_CC1101_text0_RX_OK);
+        my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0051, 0x2000, 0x0052, 0, my_fun_RX_CC1101_text0_RX_OK);
+        if(my_use_alarm_rec_data_status == 1 && my_use_alarm_rec_data_status_Efild == 0)
+        {
+            my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0052, 0x2000, 0x0053, 0, my_fun_RX_CC1101_text0_RX_OK);
+            my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0053, 0x2000, 0x0000, 1, my_fun_RX_CC1101_text0_RX_OK);
+        }
+        else if(my_use_alarm_rec_data_status == 1 && my_use_alarm_rec_data_status_Efild == 1)
+        {
+            my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0052, 0x2000, 0x0053, 0, my_fun_RX_CC1101_text0_RX_OK);
+            my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0053, 0x2000, 0x0054, 0, my_fun_RX_CC1101_text0_RX_OK);
+            my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0054, 0x2000, 0x0000, 1, my_fun_RX_CC1101_text0_RX_OK);
+
+        }
+        else
+            my_fun_CC1101_time_dialog_rx2(&myQueue01Handle, my_step, 0x0052, 0x2000, 0x0000, 1, my_fun_RX_CC1101_text0_RX_OK);
+
+
+        //LED4_TOGGLE
+        //osDelay(1000);
+    }
+    /* USER CODE END StartTask03 */
+}
+
+/* StartTask04 function */
+void StartTask04(void const * argument)
+{
+    /* USER CODE BEGIN StartTask04 */
+    /* Infinite loop */
+    //CC1101接收中断处理
+
+
+    uint8_t my_status = 0;
+    uint8_t temp8 = 0;
+    uint16_t my_step = 0;
+    for(;;)
+    {
+        //CC1101协议帧检测，对应标志组1，的0000 1000的这位1，有命令帧，发送状态到接收队列2
+
+        //=========
+        EventBits_t	uxBits = xEventGroupWaitBits(xCreatedEventGroup, /* 事件标志组句柄 */
+                             0x08,            /* 等待bit0和bit1被设置 */
+                             pdTRUE,             /* 退出前bit0和bit1被清除，这里是bit0和bit1都被设置才表示“退出”*/
+                             pdTRUE,             /* 设置为pdTRUE表示等待bit1和bit0都被设置*/
+                             10000); 	 /* 等待延迟时间 */
+
+        if((uxBits & 0x08) == 0x08)
+        {
+            my_status = 1; //通过标志组，获得接收到数据的标志
+            //printf("cc1101 receive data !\r\n");
+        }
+        else
+            my_status = 0;
+        //=========
+
+        //把CC101接收到的数据移动到缓冲区中
+        if(my_status == 1)
+        {
+            if(RF_RecvHandler_intrrupt_get_data_to_buf() > 0)
+                my_status = 1;
+            else
+                my_status = 0;
+
+        }
+        //============
+
+        //对缓冲区进行帧分析
+        if(my_status == 1)
+        {
+
+            //协议解析，获得一帧数据
+            my_101frame_analyse(4, 1, CC1101_CRC_check);
+            //=========取功能码===
+            if(my_CC1101_Frame_status > 0) //分析出来数据
+            {
+#if Debug_Usart_out_CC1101_Get_cmd==1
+                my_fun_display_fram_16(4);  //测试使用，显示接收到的数据
+#endif
+                my_CC1101_Frame_status = 0;
+
+                if(my_CC1101_COM_Fram_buf[0] == 0x10)
+                {
+                    my_status = 0x10;
+                    temp8 = my_CC1101_COM_Fram_buf[1]; //功能码为0X20，代表OK帧
+                }
+                else if (my_CC1101_COM_Fram_buf[0] == 0x68) //长帧的功能码
+                {
+                    my_status = 0x68;
+                    temp8 = my_CC1101_COM_Fram_buf[6]; //
+                }
+                else
+                {
+                    my_status = 0;
+                    temp8 = 0;
+                }
+            }
+            //====功能码分析部分===
+            if(temp8 != 0x00)
+            {
+                printf("CC1101 now_step=[%X], get_step= [%X]\r\n", my_CC1101_all_step, temp8);
+
+            }
+            //==1=OK帧对话工程
+            if( temp8 == 0x20 && my_CC1101_all_step != 0)
+            {
+                my_step = 0X2000;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            //===2====
+
+
+            //==3 ====升级对话过程
+            else if( temp8 == 0xF0)
+            {
+                //my_CC1101_all_step=0XF000; //对话过程的开始状态
+                my_step = 0XF000;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            else if( temp8 == 0xF2)
+            {
+                my_step = 0XF200;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            else if( temp8 == 0xF4)
+            {
+                my_CC1101_all_step = 0XF400;
+                my_step = 0XF400;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            else if( temp8 == 0xF6)
+            {
+                my_step = 0XF600;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            else if( temp8 == 0xF8)
+            {
+                my_step = 0XF800;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            //参数设置
+            else if(temp8 == 0X3F)
+            {
+                my_step = 0XE100;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+
+            }
+
+            //===
+
+            //===============
+
+            temp8 = 0;
+            my_CC1101_Frame_status = 0;
+            my_status = 0;
+
+        }
+        //osDelay(1);
+    }
+    /* USER CODE END StartTask04 */
+}
+
+/* StartTask08 function */
+void StartTask08(void const * argument)
+{
+    /* USER CODE BEGIN StartTask08 */
+    /* Infinite loop */
+    uint8_t my_status = 0;
+    uint8_t temp8 = 0;
+    uint16_t my_step = 0;
+    HAL_NVIC_EnableIRQ(EXIT_dianliu_EXTI_IRQn); //短路中断开启@@@
+		if(my_use_Jiedi_exit_status==1)
+    HAL_NVIC_EnableIRQ(EXIT_jiedi_EXTI_IRQn); //接地中断开启
+		else
+		HAL_NVIC_DisableIRQ(EXIT_jiedi_EXTI_IRQn);
+		
+    HAL_TIM_Base_Start_IT(&htim6);  //开启tim6定时器,1s
+    double my_temp_double = 0;
+    for(;;)
+    {
+
+        EventBits_t	uxBits = xEventGroupWaitBits(xCreatedEventGroup2, /* 事件标志组句柄 */
+                             0x03,            /* 等待bit0被设置 */
+                             pdTRUE,             /* 退出前bit0和bit1被清除，这里是bit0和bit1都被设置才表示“退出”*/
+                             pdFALSE,             /* 设置为pdTRUE表示等待bit1和bit0都被设置*/
+                             100); 	 /* 等待延迟时间 */
+
+        if((uxBits & 0x01) == 0x01) //短路中断，标志
+        {
+            my_status = 1; //通过标志组，获得接收到数据的标志
+            //printf("cc1101 receive data my_status1=%d\r\n",my_status);
+        }
+        else if((uxBits & 0x02) == 0x02)
+        {
+            my_status = 2;
+						 //printf("cc1101 receive data my_status2=%d\r\n",my_status);
+        }
+        else
+            my_status = 0;
+        //======中断处理===
+        if(my_status == 1)
+        {
+            //启动中断判断，建立各种判据，判据获得全，得出结论后，进入对话信息发送环节
+            //如果是同步录波，考虑立刻发送同步信号，然后开始自己录波，有待验证
+            temp8 = my_fun_current_exit_just(); //1为表示录波结束了，0为没有结束
+        }
+
+        if(my_IT_status == 1)
+        {
+            temp8 = my_fun_current_exit_just(); //1为表示录波结束了，0为没有结束
+
+            if(temp8 == 1 && (my_Fault_Current_End_Status != 0 || my_Fault_E_Fild_End_Status != 0)) //正常报警处理
+            {
+								
+								
+							
+                //进入中断后，把对应的DAC值设定为600A
+                my_temp_double = ADC2_Filer_value_buf_2[0][1];
+                ADC2_Filer_value_buf_2[0][1] = 600;
+                my_ADC_Count_old = my_ADC_Count - 1;
+                my_fun_Set_DAC_I_ref();//DA转换
+                ADC2_Filer_value_buf_2[0][1] = my_temp_double;
+								osDelay(3);
+
+								//不同相序进行随机进行延时发送
+								
+								osDelay((my_CC1101_chip_address-1)*30*1000);
+                //中断处理结束了，恢复中断开启
+                HAL_NVIC_ClearPendingIRQ(EXIT_dianliu_EXTI_IRQn);
+                __HAL_GPIO_EXTI_CLEAR_FLAG(EXIT_dianliu_Pin);
+                __HAL_GPIO_EXTI_CLEAR_IT(EXIT_dianliu_Pin);
+
+                HAL_NVIC_ClearPendingIRQ(EXIT_jiedi_EXTI_IRQn);
+                __HAL_GPIO_EXTI_CLEAR_FLAG(EXIT_jiedi_Pin);
+                __HAL_GPIO_EXTI_CLEAR_IT(EXIT_jiedi_Pin);
+
+
+               HAL_NVIC_EnableIRQ(EXIT_dianliu_EXTI_IRQn); //短路中断开启@@@
+               		if(my_use_Jiedi_exit_status==1)
+								HAL_NVIC_EnableIRQ(EXIT_jiedi_EXTI_IRQn); //接地中断开启
+								else
+								HAL_NVIC_DisableIRQ(EXIT_jiedi_EXTI_IRQn);
+
+                //进入数据发送环节@@@@@@@
+								printf("interrrupt is alarm\n");
+								temp8=0;
+                my_zsq_ALarm_send_status = 1; //报警发送状态为1，启动发送
+                my_step = 0X0002; //0X0200
+                xQueueSend(myQueue01Handle, &my_step, 100);
+            }
+
+            else if(temp8 == 1 && my_Fault_Current_End_Status == 0 && my_Fault_E_Fild_End_Status == 0) //中断但是没有报警
+            {
+							
+							
+                my_temp_double = ADC2_Filer_value_buf_2[0][1];
+                ADC2_Filer_value_buf_2[0][1] = 600;
+                my_ADC_Count_old = my_ADC_Count - 1; //设定变化条件，可以进行设定DAC
+                my_fun_Set_DAC_I_ref();//DA转换
+                ADC2_Filer_value_buf_2[0][1] = my_temp_double;
+								osDelay(3);
+								//不同相序进行随机进行延时发送
+								osDelay((my_CC1101_chip_address-1)*30*1000);
+                //中断处理结束了，恢复中断开启
+                HAL_NVIC_ClearPendingIRQ(EXIT_dianliu_EXTI_IRQn);
+                __HAL_GPIO_EXTI_CLEAR_FLAG(EXIT_dianliu_Pin);
+                __HAL_GPIO_EXTI_CLEAR_IT(EXIT_dianliu_Pin);
+
+                HAL_NVIC_ClearPendingIRQ(EXIT_jiedi_EXTI_IRQn);
+                __HAL_GPIO_EXTI_CLEAR_FLAG(EXIT_jiedi_Pin);
+                __HAL_GPIO_EXTI_CLEAR_IT(EXIT_jiedi_Pin);
+
+
+                HAL_NVIC_EnableIRQ(EXIT_dianliu_EXTI_IRQn); //短路中断开启@@@@@
+                if(my_use_Jiedi_exit_status==1)
+								HAL_NVIC_EnableIRQ(EXIT_jiedi_EXTI_IRQn); //接地中断开启
+								else
+								HAL_NVIC_DisableIRQ(EXIT_jiedi_EXTI_IRQn);
+
+
+                //设定模拟报警数据
+                my_Fault_Current_End_Status = 0XF2;  //中断，但是不是报警,是周期或者线路恢复正常
+
+                //进入数据发送环节@@@@@@@
+								printf("interrrupt is alarm--NO\n");
+								temp8=0;
+                my_zsq_ALarm_send_status = 1; //报警发送状态为1，启动发送
+                my_step = 0X0002; //0X0200
+                xQueueSend(myQueue01Handle, &my_step, 100);
+            }
+
+
+        }
+        //=====周期处理===
+        if(my_status == 2)
+        {
+
+            //定时一段时间进行录波计算，或者周期发送时间到进行计算
+            my_adc_1_convert(); //计算直流值（ADC1的7个分量）
+#if USE_olde_12T_data_cyc==0
+            my_fun_wave_rec();  //1级缓冲到2级缓冲，等待时间
+#else
+            my_fun_wave1_to_wave2_old_data();//历史数据
+#endif
+
+            my_adc2_convert2(0); //计算12个周期的每个周期的3个分量，和12个周期的累计平均值
+            //my_Time_Cyc_exit_Status=0;
+
+        }
+
+
+
+        //osDelay(1000);
+    }
+    /* USER CODE END StartTask08 */
+}
+
+/* Callback01 function */
+void Callback01(void const * argument)
+{
+    /* USER CODE BEGIN Callback01 */
+
+    my_os_count1++; //1秒钟，中断一次
+
+
+
+#if ADC_CYC_data==1  //开启周期采样
+    if(my_os_count1 % (30) == 0 && my_os_count1 != 0)
+    {
+        //my_fun_give_Queue(&myQueue01Handle, 0X0001); //发送周期数据
+
+    }
+
+#endif
+
+#if DAC_auto_change_on==1
+    if(my_os_count1 % (my_DAC_cyc_time) == 0 || my_os_count1 == 1)
+    {
+
+        if(my_CC1101_all_step == 00 && my_E_Field_exit_Status == 0 && my_Current_exit_Status == 0 && my_Time_Cyc_exit_Status == 0)
+        {
+            printf("\n==DAC Vref CC1101_all_step=[%X],A_EXIT_status=%d,E_exit_status=%d,cyc_exit_status=%d\n", my_CC1101_all_step, my_E_Field_exit_Status, my_Current_exit_Status, my_Time_Cyc_exit_Status);
+            //printf("=====DAC Vref====\n");
+            my_fun_Set_DAC_I_ref();//DA转换
+            my_fun_get_Line_stop_Efild(); //静态判断@@@@@@@@@@@@@@@@@@2
+            printf("----after DAC CC1101_STEP=[%X]---\n", my_CC1101_all_step);
+        }
+    }
+#endif
+
+
+#if OS_heap_high_water_data==1
+    if(my_os_count1 % (437) == 0 && my_os_count1 != 0)
+    {
+        if(my_CC1101_all_step == 00 && my_E_Field_exit_Status == 0 && my_Current_exit_Status == 0 && my_Time_Cyc_exit_Status == 0)
+        {
+            my_fun_task_heap_value();
+        }
+
+    }
+#endif
+
+    if(my_os_count1 % (13) == 0 )
+    {
+        printf("\n==ZSQ[%d]--yongsai control[%d]===\n",my_CC1101_chip_address, my_os_count1);
+        my_adc_1_convert_dis(0); //显示直流值
+        //==CC1101低功耗控制策略
+        if(ADC1_Filer_value_buf[6] >= 4.0)
+        {
+            my_CC1101_Sleep_status = 0;
+            if(my_CC1101_all_step == 0x00 && my_DTU_send_faile_count >= 3) //my_DTU_send_faile_count表示CC1101与DTU通信失败多次
+            {
+                CC1101SetSleep();
+            }
+
+        }
+        else
+        {
+            my_CC1101_Sleep_status = 1;
+            if(my_CC1101_all_step == 0x00 && my_DTU_send_faile_count >= 3)
+            {
+                CC1101SetSleep();
+            }
+
+        }
+
+        //===拥塞处理，恢复原始状态
+        if(my_E_Field_exit_Status == 1 || my_Current_exit_Status == 1 || my_Time_Cyc_exit_Status == 1)
+        {
+
+            my_exit_status_count++;
+        }
+        else
+        {
+
+            my_exit_status_count = 0;
+        }
+        if(my_exit_status_count >= 3)
+        {
+            my_E_Field_exit_Status = 0; //
+            my_Current_exit_Status = 0;
+            my_exit_status_count = 0;
+            my_Time_Cyc_exit_Status = 0;
+            my_CC1101_all_step = 0;
+            my_sys_start_status = 0;
+        }
+        //=============
+
+        //锂电池充电策略
+        if(ADC1_Filer_value_buf[6] > 4.2)
+        {
+            //EN25505_OFF;  //关断锂电池充电电路
+
+        }
+        else
+        {
+            //EN25505_ON;  //打开锂电池供电电路
+
+        }
+
+        //线上取电管理策略
+        if(my_os_count1 % 3607 == 0)
+        {
+            CT_to_BQ25505_ON;  //CT给BQ25充电
+            HAL_Delay(500);
+            CT_to_BQ25505_OFF;
+            HAL_Delay(500);
+            CT_to_BQ25505_ON;
+        }
+        //25505芯片的管理策略
+        if(my_os_count1 % (3673) == 0 )
+        {
+
+            EN25505_OFF;
+            HAL_Delay(1000);
+            EN25505_ON;//BQ25505工作（默认）
+
+        }
+				//线上放电策略
+				if(ADC2_Filer_value_buf_2[0][1]>300 && my_Line_short_status==1)
+				{
+					CT_Source_short_ON; //短路放电 10分钟，充电10分钟
+					
+					if(my_Line_short_count>600) //短路放电10分钟
+					{
+						my_Line_short_status=0;
+						my_Line_short_count=0;
+					}
+					
+				}
+				else if(ADC2_Filer_value_buf_2[0][1]>300 && my_Line_short_status==0)
+				{
+					CT_Source_short_OFF;//不短路放电 
+				
+					if(my_Line_short_count>600) //不短路，充电10分钟
+					{
+						my_Line_short_status=1;
+						my_Line_short_count=0;
+					}
+					
+					
+				}
+				if(ADC2_Filer_value_buf_2[0][1]<280)
+				{
+					CT_Source_short_OFF;//不短路放电
+					my_Line_short_status=0;
+				}
+       //====================
+
+        //初始化状态结束
+        if(my_sys_start_status == 1)
+        {
+
+            printf("==start init [%d]==\n", my_sys_start_status);
+            BaseType_t xResult;
+            BaseType_t xHigherPriorityTaskWoken = pdFAIL;
+            my_Time_Cyc_exit_Status = 1;
+            my_dianliu_exit_add = my_wave_write_add; //当前录波地址
+            my_Time_Cyc_exit_add = my_wave_write_add;
+            xResult =	xEventGroupSetBitsFromISR(xCreatedEventGroup2, 0X02, &xHigherPriorityTaskWoken); //产生中断事件
+            if(xResult != pdFAIL)
+            {
+                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+            }
+            HAL_Delay(3000); //等待录波
+
+            my_tim6_count = 0;
+            my_fun_give_Queue(&myQueue01Handle, 0X0001); //发送周期数据
+            //my_sys_start_status = 0;//@@@@@指示器重启，初始化的标志。
+
+        }
+
+
+
+
+    }
+
+    //周期报警
+    if(my_os_count1 % (3637 * 3 + (my_CC1101_chip_address-1) * 31) == 0 && my_zsq_ALarm_send_status == 0 && my_os_count1 != 0)
+    {
+        printf("===send simulation alarm data--1!!!\n");
+        fun_wave2_to_wave3(); //二级缓存中的所有数据放入到三级缓存中，处理后值
+        my_cyc_alarm_status = 1;
+        my_zsq_ALarm_send_status = 1;
+        my_fun_give_Queue(&myQueue01Handle, 0X0002); //发送模拟报警
+
+        //LED2_TOGGLE;
+    }
+
+    //重复发送报警数据
+    if(my_os_count1 % (38+ (my_CC1101_chip_address-1) * 15) == 0 && my_CC1101_all_step == 0x00 && my_zsq_ALarm_send_status == 1 && my_os_count1 != 0)
+    {
+        printf("==cyc send alarm data!!!--2\n");
+        my_fun_give_Queue(&myQueue01Handle, 0X0002); //发送报警
+    }
+
+//		//设置参数请求
+//		if(my_os_count1 % (23) ==0 && my_CC1101_all_step==0x00)
+//		{
+//			printf("==send config parameter，my_os_count1=%d !!!--2\n",my_os_count1);
+//			my_fun_give_Queue(&myQueue01Handle, 0X00E1); //发送报警
+//		}
+
+
+
+    /* USER CODE END Callback01 */
+}
+
+/* USER CODE BEGIN Application */
+
+/* USER CODE END Application */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

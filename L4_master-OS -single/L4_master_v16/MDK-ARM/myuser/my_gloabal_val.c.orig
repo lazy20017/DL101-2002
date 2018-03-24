@@ -1,0 +1,57 @@
+#include "stm32l4xx_hal.h"
+#include "my_gloabal_val.h"
+
+uint32_t my_tim6_count=0;
+
+
+
+uint8_t  my_usart4_re_buf[rsbuf_max]= {0};
+uint16_t my_usart4_write_count=0;
+uint16_t my_usart4_read_count=0;
+
+
+uint8_t  my_usart3_re_buf[rsbuf_max]= {0};
+uint16_t my_usart3_write_count=0;
+uint16_t my_usart3_read_count=0;
+
+uint8_t my_protocole1_status=0; //为1表示收到1帧数据，为0表示没有数据
+uint8_t my_protobole1_buf1[256]={0};  //保存串口收到的，从CPU发送过来的1帧数据
+
+
+
+uint16_t my_wave_record[WAVE_Channel_Num][WAVE_number]= {0}; //全波的一级缓存，利用定时器进行波形的存储，假定20ms采集一次，看能采集到多少个数据。
+uint16_t my_wave_write_add=0;  //全波录波一级缓存指针
+
+uint16_t my_wave_record_sec2[WAVE_Channel_Num][WAVE_number_sec2]= {0}; //全波的二级缓存
+uint16_t my_wave_record_sec3[WAVE_Channel_Num][WAVE_number_sec3]= {0}; //全波的二级缓存
+uint8_t  my_wave_re_status=0;  //录波状态，0表示无数据，1，2,3,4,5表示二级缓存有数据，10表示发送数据
+
+
+
+uint16_t ADC2_GetValue[ADC2_ROW][ADC2_COLM]= {0}; //用于保存采集的值,M个通道,N次，原始数据
+uint16_t ADC2_Filer_value_buf_1[ADC2_COLM][3]={0}; //用于保存3个通道，12个周期测量的平均值
+double ADC2_Filer_value_buf_2[ADC2_COLM][3]= {0};  //AD转换后的物理值，12个周期的平均值，有效值，最大值，第1行为全波电流，第2行为电场，第3行为半波电流
+double ADC2_Filer_value_buf_3[ADC2_COLM][3]= {0};  //三级换成
+
+
+uint16_t ADC1_GetValue[ADC1_ROW][ADC1_COLM]= {0}; //用于保存采集的值,M个通道,N次
+uint16_t ADC1_GetValue_Aver[ADC1_COLM]= {0}; //用于保存平均值
+double ADC1_Filer_value_buf[ADC1_COLM]= {0};  //用来存储ADC1采样到的的DC直流数据，共7个通道，真实值，转换后的
+//中断
+uint16_t my_pc01_count=0;
+uint16_t my_pc02_count=0;
+
+uint16_t my_dianliu_exit_add=0; //此变量，用来计算中断或者定时产生时刻，查询录波1级缓冲区所用的地址
+uint16_t my_Wave_It_add=0;  //记录中断时刻地址，共同步录波使用
+
+uint8_t  my_Current_exit_Status=0; //表示电流产生中断
+uint16_t my_Current_Exit_add=0;
+
+uint8_t  my_E_Field_exit_Status=0; //表示电场产生中断
+uint16_t my_E_Field_exit_add=0;
+
+uint8_t  my_Time_Cyc_exit_Status=0; //表示电场产生中断
+uint16_t my_Time_Cyc_exit_add=0;
+
+//
+uint16_t my_send_3S_count=0;
