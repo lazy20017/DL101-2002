@@ -2,6 +2,7 @@
 #include "cmsis_os.h"
 #include "my_gprs.h"
 #include "my_cc_TX_RX.h"
+//#include "my_globle_extern.h"
 
 void my_fun_set_group(void);
 void my_fun_take_group(void);
@@ -97,7 +98,7 @@ void my_fun_CC1101_send_heart_data(void);
 void  my_fun_GPRS_TX_start1(void);
 void  my_fun_GPRS_TX_start2(void);
 void  my_fun_GPRS_TX_start3(void);
-void  my_fun_GPRS_TX_start4(void);
+//void  my_fun_GPRS_TX_start4(void);
 
 void  my_fun_GPRS_TX_OK(void);
 
@@ -108,9 +109,9 @@ void  my_fun_GPRS_TX_CYC4(void);
 
 void  my_fun_GPRS_TX_RTC_data(void);
 void  my_fun_GPRS_TX_CYC5(void);
-void  my_fun_GPRS_TX_CYC6(void);
-void  my_fun_GPRS_TX_CYC7(void);
-void  my_fun_GPRS_TX_CYC8(void);
+//void  my_fun_GPRS_TX_CYC6(void);
+//void  my_fun_GPRS_TX_CYC7(void);
+//void  my_fun_GPRS_TX_CYC8(void);
 void  my_fun_GPRS_TX_RESET(void);
 
 uint8_t my_fun_GPRS_RX_change_parameter(void);
@@ -134,3 +135,19 @@ void my_fun_CC1101_TX_OK(void);
 void my_fun_display_ZSQ_data(void);
 uint8_t my_fun_dialog_CC1101_RX_0(void);
 void my_fun_CC1101_TX_config_parmeter(void);
+
+
+//================
+void  my_fun_GPRS_TX_start1_server(void);
+void  my_fun_GPRS_TX_start2_server(void);
+void  my_fun_GPRS_TX_start3_server(void);
+void  my_fun_GPRS_TX_start4_server(void);
+
+void  my_fun_GPRS_TX_OK_80(void);
+void  my_fun_GPRS_TX_Call_0(void);
+void  my_fun_GPRS_TX_RTC_data_read(void);
+
+#define MY_yaoxin_status_OK  0X01    //如果采用双点信息，就是0X01正常，0x02故障。如果是单点信息，00为正常，01为故障
+#define MY_yaoxin_status_ERROR 0x02
+
+

@@ -36,7 +36,7 @@ extern uint16_t MY_PORT;
 uint8_t GPRS_Status=0;  //标识最终手机模块，GPRS网络状态，1为正常，可以连接服务器，0为有问题，需要处理
 uint8_t MESS_Status=0;  //短信网络状态
 uint8_t NET_Status=0;  //NET联网状态
-uint8_t NET_Server_status=0; //远端服务器server状态
+uint8_t NET_Server_status=0; //远端服务器server状态, GPRS链路状态标识，0为没有建立链路，1为建立链路了
 
 
 

@@ -962,7 +962,7 @@ extern uint16_t rsbuf1pt_read;
 
 //协议解析，获得一帧数据,
 //第1个参数为端口号，
-//第2个为地址2字节,1为两个字节，0位1个字节
+//第2个为地址2字节判断,1为两个字节，0为1个字节，标准101协议为0，表示单字节地址数量
 //第3个参数为是否开启CRC校验，1为开启
 int my_101frame_analyse(uint8_t port_number, uint8_t length_long_status,uint8_t CRC_check_status)
 {
@@ -998,7 +998,7 @@ int my_101frame_analyse(uint8_t port_number, uint8_t length_long_status,uint8_t 
         my_com_buf1 = my_CC1101_COM_Fram_buf; //存最后的指令
     }
     //===USART3
-    else if(port_number == 3)
+    else if(port_number == 3)  //调试端口
     {
         my_pro1_status = &USART3_FRAME_status;
         my_buf_read_count = &rsbuf3pt_read;
@@ -1007,7 +1007,7 @@ int my_101frame_analyse(uint8_t port_number, uint8_t length_long_status,uint8_t 
         my_re_buf = rsbuf3;
         my_com_buf1 = USART3_my_frame; //存最后的指令
     }
-    else if(port_number == 1)
+    else if(port_number == 1) //GRPS
     {
         my_pro1_status = &USART1_FRAME_status;
         my_buf_read_count = &rsbuf1pt_read;
@@ -1112,7 +1112,7 @@ xx0:
         }
         else
         {
-            //取得帧的长度，从ID开始算，一直到CRC不包含CRC，帧的总长度为length+6+2   68 xx xx yy yy 68 (....length..) crc 16
+            //取得帧的长度，从ID开始算，一直到CRC不包含CRC，帧的总长度为length+6+2   68 xx xx  68 (....length..) crc 16
             my_temp_length1 = my_re_buf[my_start_add + 1];
             my_temp_length2 = my_re_buf[my_start_add + 2];
             if(my_temp_length1 != my_temp_length2)

@@ -1,5 +1,6 @@
 #include "my_gprs.h"
 #include "my_cc1101.h"
+#include "my_globle_extern.h"
 
 /*
 GPRS发送数据利用  uint8_t my_at_senddata(uint8_t *string);
@@ -123,22 +124,8 @@ extern float MY_Speed_L_Gate;
 
 extern uint16_t my_tim6_count;
 
-extern struct indicator_class
-{
-    uint8_t duanlu_data;
-    uint8_t jiedi_data;
-    uint8_t DC_data_buf[14]; //1温度，2电源，3参考电压，4干电池，5线上电压，6太阳能，7锂电池
-    uint8_t AC_data_buf[6];  //全波电流，电场、半波电流
-    uint8_t AC12T_ALL_Current_data_buf[24];
-    uint8_t AC12T_ALL_dianchang_data_buf[24];
-    uint8_t AC12T_HALF_Current_data_buf[24];
-    uint8_t data_time_buf[7]; //RTC
-    uint8_t data_type;  //01为周期，02为报警
-    uint8_t count_time[2];  //全局同步值
-
-} my_indicator_data[];
-
-
+extern struct indicator_class my_indicator_data[];
+extern uint8_t my_usart1_tx_buf1[];
 /*
 功能：发送命令，等待（特定）反馈命令
 发送数据type为类型，1为固定长度，2为非固定长度，txbuf为发送指令数组,address_type为1，rxbuf为接收
@@ -1005,42 +992,6 @@ void wdz_GPRS_string_to_array(uint8_t *my_string, uint8_t *txbuf)
 */
 extern uint8_t link_status_GPRS;
 extern uint8_t GPRS_Heartdata_error_count;  //判断心跳包失败的次数，如果到5次了，就标识GPRS网络故障，然后利用这个计数值进行M35的重启判断
-uint8_t WDZ_GPRS_101transmit_heartdata(void)
-{
-    uint8_t my_status = 0;
-    uint8_t my_rxbuf[7] = "\x10\x80\x01\x00\x81\x16";
-    uint8_t my_txbuf[7] = TX_GPRS_101_heartdata;
-
-
-    my_status = WDZ_GPRS_101transmint_commd_wait_commd(1, my_txbuf, 1, my_rxbuf);
-
-    if(my_status == 0)
-    {
-        USART_printf(&huart3, " Server heart-\r\n");
-        GPRS_Heartdata_error_count++;
-    }
-    else if(my_status == 1)
-    {
-        USART_printf(&huart3, " Server heart*\r\n");
-        GPRS_Heartdata_error_count = 0;
-    }
-    //网络连接状态判断，如果5次失败，就标识网络有问题，重新启动M35
-    if(GPRS_Heartdata_error_count >= 3)
-    {
-        GPRS_Status = 0;
-        NET_Server_status = 0;
-        //GPRS_Heartdata_error_count=0;
-
-        link_status_GPRS = 0; //GPRS网络如果断开了，则认为101链路断了
-    }
-
-    return my_status;
-
-}
-
-
-
-
 
 
 
@@ -1063,420 +1014,14 @@ extern uint32_t MY_Table2_Cycledata_ReadAddress;
 extern uint8_t MY_GPRS_Call_Single_data_number;
 extern uint8_t MY_GPRS_Call_Analog_data_number;
 
-uint8_t WDZ_GPRS_101transmit_Cycle_data(void)  //发送历史数据，修改方案2016-05-27，历史数据只发送一天的。10*24=240条数据
-{
-    uint8_t tempbuf[12] = {0};
-    uint32_t startaddressPT = MY_Table2_Cycledata_StartAddress;
-    uint32_t endaddressPT = MY_Table2_Cycledata_EndAddress;
-    uint32_t writeaddressPT = MY_Table2_Cycledata_WriteAddress;
-    uint32_t readaddressPT = MY_Table2_Cycledata_ReadAddress;
-    uint32_t tableaddress = 0;
-
-    uint8_t my_status = 0;
-    uint8_t tempstaus = 0;
-    uint8_t my_rxbuf[7] = "\x10\x80\x01\x00\x81\x16";
-    uint8_t my_txbuf[256] = TX_GPRS_101_testdata;
-    uint16_t my_tx_cn = 0;
-
-
-//***处理获得最新的表指针地址
-    SPI_EE_BufferRead2(tempbuf, 213, 12);
-
-    my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
-    MY_Table2_Cycledata_StartAddress = startaddressPT;
-    MY_Table2_Cycledata_EndAddress = endaddressPT;
-    MY_Table2_Cycledata_WriteAddress = writeaddressPT;
-    MY_Table2_Cycledata_ReadAddress = readaddressPT;
-
-//--------------
-//进行读指针末尾校验，如果到了末尾，就返回起始地址，然后写入表中
-    if(readaddressPT + 144 > endaddressPT)
-    {   readaddressPT = startaddressPT;
-        MY_Table2_Cycledata_ReadAddress = readaddressPT;
-        tempbuf[0] = readaddressPT & 0x0000ff;
-        tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
-        tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
-        SPI_EE_BufferWrite2(tempbuf, 222, 3);
-    }
-
-
-//----------------------
-
-    if(readaddressPT > writeaddressPT)
-    {
-        while(readaddressPT > writeaddressPT)
-        {
-            if(GPRS_Status == 1 && link_status_GPRS == 1)
-                my_status = 1;
-            else
-                my_status = 0;
-
-            wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //密码指令
-            //my_status=WDZ_GPRS_101transmint_commd(2,my_txbuf,2);
-            my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-            if(my_status == 1)
-            {
-                //my_status=WDZ_101receive_testactive(0x03,0x68,0x07,300);
-//***********重要****发送周期性数据****
-//先从EEPROM中读出来，放到3个特定数组中，然后发送3个101信息包，遥信，遥测、环境，带时标。
-//等待Server肯定确认，确认后修改EEPROM中数据包的GPRS发送状态，同时修改读指针地址
-
-                tempstaus = my_eeprom_data_to_cycle_array(); //把数据存入到GPRS发送数组中*********
-                if(tempstaus == 0)
-                {
-                    if((MY_GPRS_Cycle_Transmintdata_status != 1 && MY_GPRS_Cycle_Transmintdata_status != 2) | (MY_GPRS_Call_Single_data_number != 18) || (MY_GPRS_Call_Analog_data_number != 36))
-                    {   //移动读指针
-                        readaddressPT = writeaddressPT;	 //因为读指针已经跑偏，直接把它校正到写指针2015-11.16
-                        tempbuf[0] = readaddressPT & 0x0000ff;
-                        tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
-                        tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
-                        tableaddress = 222;
-                        SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
-                        my_status = 0;
-                        return my_status;
-                    }
-                }
-
-
-                if(tempstaus == 1)
-                {
-                    //生成发送数据包，发送数据，先发遥信、再发遥测、最后发环境
-                    //遥信数据包 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
-
-                    my_gprs_generate_101single_data(1, my_txbuf);
-                    //my_at_senddata(my_txbuf);
-
-                    //新增
-                    //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
-
-                    my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-                    if(my_status == 1)
-                    {
-
-                        //遥测数据包
-                        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
-                        my_gprs_generate_101analog_data(1, my_txbuf);
-                        //my_at_senddata(my_txbuf);
-
-                        //新增
-                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
-                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-                    }
-                    else
-                    {
-                        my_status = 0;
-                        USART_printf(&huart3, "GPRS Sing data error"); //调试使用
-                    }
-
-
-                    if(my_status == 1)
-                    {
-                        //环境数据包
-                        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
-                        my_gprs_generate_101MCU_data(1, my_txbuf);
-                        //my_at_senddata(my_txbuf);
-                        //新增
-                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
-                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-
-                    }
-                    else
-                    {
-                        my_status = 0;
-                        USART_printf(&huart3, "GPRS angale data error"); //调试使用
-                    }
-
-                    if(my_status == 0)
-                    {
-                        USART_printf(&huart3, "GPRS MCU data error"); //调试使用
-                    }
-
-                }
-                else
-                {
-                    //生产空数据包，发送数据包
-                    my_gprs_generate_101single_data(0, my_txbuf);
-                    my_at_senddata(my_txbuf);
-                    my_gprs_generate_101analog_data(0, my_txbuf);
-                    my_at_senddata(my_txbuf);
-                    my_gprs_generate_101MCU_data(0, my_txbuf);
-                    my_at_senddata(my_txbuf);
-
-                }
-
-                //接收server发来的肯定确认数据包
-                //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500); //旧的方案，不要确认的方案
-
-            }
-
-
-            else if(my_status == 0)
-            {   //Delay_us(100);
-                USART_printf(&huart3, " Server Cycle data error1\r\n");
-                break;
-                //LED3_TOGGLE;
-            }
-
-
-
-            if(my_status == 1) //发送成功了，最终
-            {
-                //进行发送帧状态字节修改，和移动EEPROM的表读指针
-                if(tempstaus == 1)
-                    my_GPRS_chang_tablereadpt(2, 1); //成功，修改此帧状态为1，表示发送出去了，移动读指针
-                else if(tempstaus == 0)
-                {
-                    my_GPRS_chang_tablereadpt(2, 0);  //失败，也修改为1，让指针动起来，//修改为2，未发送，不移动指针
-                    break;
-                }
-
-                //Delay_us(100);
-                USART_printf(&huart3, " Server Cycle data OK1*--%d\r\n", my_tx_cn);
-
-
-                //--2016-5-27 发送周期数据控制，只发送一天的周期历史数据，防止长时间占用。10*24=240
-                my_tx_cn++;  //发送数据条数计数
-                if(my_tx_cn > TX_History_cyc_data_record)
-                {
-                    readaddressPT = writeaddressPT;	 //因为读指针已经跑偏，直接把它校正到写指针2016-5-27
-                    tempbuf[0] = readaddressPT & 0x0000ff;
-                    tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
-                    tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
-                    tableaddress = 222;
-                    SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
-
-                }
-
-
-                // LED2_TOGGLE;
-            }
-            else if(my_status == 0)
-            {   //Delay_us(100);
-                USART_printf(&huart3, " Server Cycle data errort2 \r\n");
-                //LED3_TOGGLE;
-            }
-            //***处理获得最新的表指针地址
-            SPI_EE_BufferRead2(tempbuf, 213, 12);
-            my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
-            MY_Table2_Cycledata_StartAddress = startaddressPT;
-            MY_Table2_Cycledata_EndAddress = endaddressPT;
-            MY_Table2_Cycledata_WriteAddress = writeaddressPT;
-            MY_Table2_Cycledata_ReadAddress = readaddressPT;
-
-
-        }
-        //进行读指针移动
-        if(readaddressPT > endaddressPT || (readaddressPT + 144) > endaddressPT) //进行读指针校正
-        {   readaddressPT = startaddressPT;
-
-            tempbuf[0] = readaddressPT & 0x0000ff;
-            tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
-            tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
-            tableaddress = 222;
-            SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
-
-        }
-
-
-    }
-    else if(readaddressPT < writeaddressPT)
-    {
-        while(readaddressPT < writeaddressPT)
-        {
-            if(GPRS_Status == 1 && link_status_GPRS == 1)
-                my_status = 1;
-            else
-                my_status = 0;
-
-            wdz_GPRS_string_to_array(TX_GPRS_101_testdata, my_txbuf); //密码指令
-            //my_status=WDZ_GPRS_101transmint_commd(2,my_txbuf,2);
-            my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-            if(my_status == 1)
-            {
-                //my_status=WDZ_101receive_testactive(0x03,0x68,0x07,300);
-//***********重要****发送周期性数据****
-//先从EEPROM中读出来，放到3个特定数组中，然后发送3个101信息包，遥信，遥测、环境，带时标。
-//等待Server肯定确认，确认后修改EEPROM中数据包的GPRS发送状态，同时修改读指针地址
-
-                tempstaus = my_eeprom_data_to_cycle_array(); //把数据存入到GPRS发送数组中*********
-                //强制校验指针环节，从EEPROM中读的数据是错的,2015-11.16
-                if(tempstaus == 0)
-                {
-                    if((MY_GPRS_Cycle_Transmintdata_status != 1 && MY_GPRS_Cycle_Transmintdata_status != 2) | (MY_GPRS_Call_Single_data_number != 18) || (MY_GPRS_Call_Analog_data_number != 36))
-                    {   //移动读指针
-                        readaddressPT = writeaddressPT;	 //因为读指针已经跑偏，直接把它校正到写指针2015-11.16
-                        tempbuf[0] = readaddressPT & 0x0000ff;
-                        tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
-                        tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
-                        tableaddress = 222;
-                        SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
-                        my_status = 0;
-                        return my_status;
-                    }
-                }
-
-                if(tempstaus == 1)
-                {
-                    //生成发送数据包，发送数据，先发遥信、再发遥测、最后发环境
-                    //遥信数据包 68 23 23 68 73 01 00 01 98 14 00 01 00 01 00 00 00 00 00 00 00 00 23 16
-
-                    my_gprs_generate_101single_data(1, my_txbuf);
-                    //my_at_senddata(my_txbuf);
-
-                    //新增
-                    //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
-
-                    my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-                    if(my_status == 1)
-                    {
-
-                        //遥测数据包
-                        //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
-                        my_gprs_generate_101analog_data(1, my_txbuf);
-                        //my_at_senddata(my_txbuf);
-
-                        //新增
-                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
-                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-                    }
-                    else
-                    {
-                        my_status = 0;
-                        USART_printf(&huart3, "GPRS Sing data error"); //调试使用
-                    }
-
-
-                    if(my_status == 1)
-                    {
-                        //环境数据包
-                        //68 53 53 68 53 01 00 09 98 14 00 01 00 00 41 00 00 00 00 00 00 00 00 00 00 4B 16
-                        my_gprs_generate_101MCU_data(1, my_txbuf);
-                        //my_at_senddata(my_txbuf);
-                        //新增
-                        //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500);
-                        my_status = my_status = WDZ_GPRS_101transmint_commd_wait_commd(2, my_txbuf, 1, my_rxbuf);
-
-                    }
-                    else
-                    {
-                        my_status = 0;
-                        USART_printf(&huart3, "GPRS angale data error"); //调试使用
-                    }
-
-                    if(my_status == 0)
-                    {
-                        USART_printf(&huart3, "GPRS MCU data error"); //调试使用
-                    }
-
-                }
-                else
-                {
-                    //生产空数据包，发送数据包
-                    my_gprs_generate_101single_data(0, my_txbuf);
-                    my_at_senddata(my_txbuf);
-                    my_gprs_generate_101analog_data(0, my_txbuf);
-                    my_at_senddata(my_txbuf);
-                    my_gprs_generate_101MCU_data(0, my_txbuf);
-                    my_at_senddata(my_txbuf);
-
-                }
-
-                //接收server发来的肯定确认数据包
-                //my_status=WDZ_GPRS_101receive_testactive(0x80,00,00,1500); //旧的方案，不要确认的方案
-
-            }
-
-
-            else if(my_status == 0)
-            {
-                USART_printf(&huart3, " Server Cycle data error3\r\n");
-                break;
-            }
-
-
-
-            if(my_status == 1) //发送成功了，最终
-            {
-                //进行发送帧状态字节修改，和移动EEPROM的表读指针
-                if(tempstaus == 1)
-                {
-                    my_GPRS_chang_tablereadpt(2, 1); //成功，修改此帧状态为1，表示发送出去了，移动读指针
-                }
-                else if(tempstaus == 0)
-                {
-                    my_GPRS_chang_tablereadpt(2, 0);  //失败，修改为2，未发送，不移动指针
-                    USART_printf(&huart3, " Server Cycle data errort4-1 \r\n");
-                    break;
-                }
-
-                //Delay_us(100);
-                USART_printf(&huart3, " Server Cycle data OK2*--%d\r\n", my_tx_cn);
-
-                //--2016-5-27 发送周期数据控制，只发送一天的周期历史数据，防止长时间占用。10*24=240
-                my_tx_cn++;  //发送数据条数计数
-                if(my_tx_cn > TX_History_cyc_data_record)
-                {
-                    readaddressPT = writeaddressPT;	 //因为读指针已经跑偏，直接把它校正到写指针2016-5-27
-                    tempbuf[0] = readaddressPT & 0x0000ff;
-                    tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
-                    tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
-                    tableaddress = 222;
-                    SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
-
-                }
-                //---2016-05-27 修改结束
-                // LED2_TOGGLE;
-            }
-            else if(my_status == 0)
-            {   //Delay_us(100);
-                USART_printf(&huart3, " Server Cycle data errort4 \r\n");
-                //LED3_TOGGLE;
-            }
-            //***处理获得最新的表指针地址
-            SPI_EE_BufferRead2(tempbuf, 213, 12);
-            my_buf_writeto_val(tempbuf, &startaddressPT, &endaddressPT, &writeaddressPT, &readaddressPT);
-            MY_Table2_Cycledata_StartAddress = startaddressPT;
-            MY_Table2_Cycledata_EndAddress = endaddressPT;
-            MY_Table2_Cycledata_WriteAddress = writeaddressPT;
-            MY_Table2_Cycledata_ReadAddress = readaddressPT;
-
-
-        }
-        //进行读指针移动
-        if(readaddressPT > writeaddressPT) //进行读指针校正
-        {   readaddressPT = writeaddressPT;
-
-            tempbuf[0] = readaddressPT & 0x0000ff;
-            tempbuf[1] = (readaddressPT >> 8) & 0x0000ff;
-            tempbuf[2] = (readaddressPT >> 16) & 0x0000ff;
-            tableaddress = 222;
-            SPI_EE_BufferWrite2(tempbuf, tableaddress, 3);
-
-        }
-
-
-    }
-
-
-
-
-
-
-
-
-
-
-    return my_status;
-
-}
-
-
 
 
 
 /*
 功能：生成遥信数据包  68 23 23 68 73 01 00 02 ?? 14 01 00 01 00 ?? ??  ??  ** 16
 */
+
+#define my_single_inf_num 2   //遥信使用的单点信息为1，双点信息为2
 void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf)
 {
     uint8_t length = 0;
@@ -1484,24 +1029,30 @@ void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf)
 
     if(temp == 1) //生成数据包
     {
-        length = MY_GPRS_Call_Single_data_number;
+        length = MY_GPRS_Call_Single_data_number; //56个信息体，每个是1个字节，双点信息，
         my_rsbuf[0] = 0x68;
         my_rsbuf[3] = 0x68;
-        my_rsbuf[1] = length + 10 + 7; //18+10+7
-        my_rsbuf[2] = length + 10 + 7;
+        my_rsbuf[1] = length + 11+7; //带有时标7个字节
+        my_rsbuf[2] = length + 11+7;
 
         //控制域码处理
-        my_rsbuf[4] = 0x73; //控制域码为53/73
-        my_GPRS_101_geneate_FCBword(my_rsbuf);
+			  my_101_DIR = 0X80;
+				my_101_PRM = 0X40;
+			if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) && 0X20;
+				my_101_FCV = 0X10;
+				my_101_FC = 0X03;
+			  
+        my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+        
 
-        //my_rsbuf[4]=0x73&WDZ_GPRS_101FCB;  //控制域码为53/73
 
         my_rsbuf[5] = DTU_ADDRESS;
         my_rsbuf[6] = (DTU_ADDRESS >> 8);
 
-        my_rsbuf[7] = 0X02; //类型标识，带时标的单点信息，
+        my_rsbuf[7] = 31; //TI  带有时标
         my_rsbuf[8] = length + 0x80; //信息体个数
-        my_rsbuf[9] = 0x14; //传输原因
+        my_rsbuf[9] = 20; //传输原因
 
         my_rsbuf[10] = DTU_ADDRESS; //公共域地址
         my_rsbuf[11] = (DTU_ADDRESS >> 8);
@@ -1509,12 +1060,10 @@ void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf)
         my_rsbuf[12] = 0x01; //遥信信息体首地址
         my_rsbuf[13] = 0x00;
 
-        my_buf1_to_buf2(MY_GPRS_Call_Single_data_buf, 0, my_rsbuf, 14, length); //存储遥信数据
+      
 
-        my_buf1_to_buf2(MY_GPRS_Call_Time_data_buf, 0, my_rsbuf, 14 + length, 7); //存储时标
-
-        my_rsbuf[13 + length + 7 + 1] = 0XFF;
-        my_rsbuf[13 + length + 7 + 1 + 1] = 0x16;
+        my_rsbuf[11 + length +6 + 7 + 1] = 0XFF;
+        my_rsbuf[11 + length +6+ 7 + 1 + 1] = 0x16;
 
         wdz_GPRS_101check_generate(my_rsbuf); //生成校验字节
 
@@ -1556,7 +1105,7 @@ void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf)
         wdz_GPRS_101check_generate(my_rsbuf); //生成校验字节
     }
 
-
+		
 }
 
 
@@ -2352,7 +1901,7 @@ extern uint16_t MY_PORT;  //8080  16位数据
 void WDZ_GPRS_Adjust_value(uint8_t *rsbuf)
 {
     uint16_t my_address = 0;
-   // uint8_t k = 0;
+    // uint8_t k = 0;
     uint16_t my_temp_val16 = 0;
     //uint8_t my_buf[100] = {0};
     //uint8_t my_phonebuf[16] = {0};
@@ -2433,7 +1982,7 @@ void WDZ_GPRS_Adjust_value(uint8_t *rsbuf)
         AT25_WriteByte(rsbuf[2], EEPROM_SPEED_Gate_H_Address); //把新的周期数据时间地址写入到EEPROM中
         AT25_WriteByte(rsbuf[3], EEPROM_SPEED_Gate_H_Address + 1);
 
-        
+
 
 
     }
@@ -4642,19 +4191,22 @@ void my_gprs_generate_101yaoce2_data(uint8_t *my_rsbuf)
     //数据部分
     for(jj = 0; jj < 3; jj++)
     {   //1温度，2电源，3参考电压，4干电池，5线上电压，6太阳能，7锂电池
-        my_rsbuf[14 + 12 * jj] = my_indicator_data[jj].DC_data_buf[5 * 2]; //6太阳能
-        my_rsbuf[15 + 12 * jj] = my_indicator_data[jj].DC_data_buf[5 * 2 + 1];
+        my_rsbuf[14 + 8 * jj] = my_indicator_data[jj].DC_data_buf[5 * 2]; //6太阳能
+        my_rsbuf[15 + 8 * jj] = my_indicator_data[jj].DC_data_buf[5 * 2 + 1];
 
-        my_rsbuf[16 + 12 * jj] = my_indicator_data[jj].DC_data_buf[4 * 2]; //5线上电压
-        my_rsbuf[17 + 12 * jj] = my_indicator_data[jj].DC_data_buf[4 * 2 + 1];
+        my_rsbuf[16 + 8 * jj] = my_indicator_data[jj].DC_data_buf[4 * 2]; //5线上电压
+        my_rsbuf[17 + 8 * jj] = my_indicator_data[jj].DC_data_buf[4 * 2 + 1];
+
+				//干电池数据转换成，指示器对应的TIMER
+        //my_rsbuf[18 + 8 * jj] = my_indicator_data[jj].DC_data_buf[3 * 2]; //4干电池
+        //my_rsbuf[19 + 8 * jj] = my_indicator_data[jj].DC_data_buf[3 * 2 + 1];
+			
+					my_rsbuf[18 + 8 * jj] = my_indicator_data[jj].count_time[0]; //4干电池														
+					my_rsbuf[19 + 8 * jj] = my_indicator_data[jj].count_time[1];
 
 
-        my_rsbuf[18 + 12 * jj] = my_indicator_data[jj].DC_data_buf[3 * 2]; //4干电池
-        my_rsbuf[19 + 12 * jj] = my_indicator_data[jj].DC_data_buf[3 * 2 + 1];
-
-
-        my_rsbuf[20 + 12 * jj] = my_indicator_data[jj].AC_data_buf[2 * 2]; //半波电流值
-        my_rsbuf[21 + 12 * jj] = my_indicator_data[jj].AC_data_buf[2 * 2 + 1];
+        my_rsbuf[20 + 8 * jj] = my_indicator_data[jj].AC_data_buf[4]; //半波电流值
+        my_rsbuf[21 + 8 * jj] = my_indicator_data[jj].AC_data_buf[5];
 
     }
 
@@ -4692,14 +4244,14 @@ void my_gprs_generate_101yaoce12T_data(uint8_t *my_rsbuf)
     //数据部分
     for(jj = 0; jj < 3; jj++)
     {   //12T 电流+电场
-        for(ii = 0; ii < 12; ii++)
+        for(ii = 0; ii < 24; ii++)
         {
-            my_rsbuf[14 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_Current_data_buf[ii * 2]; //电流
-            my_rsbuf[15 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_Current_data_buf[ii * 2 + 1];
-
-            my_rsbuf[16 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_dianchang_data_buf[ii * 2]; //电场
-            my_rsbuf[17 + 48 * jj + ii * 4] = my_indicator_data[jj].AC12T_ALL_dianchang_data_buf[ii * 2 + 1];
-
+            my_rsbuf[14 + 48 * jj + ii] = my_indicator_data[jj].AC12T_ALL_Current_data_buf[ii ]; //电流
+            
+        }
+				for(ii = 0; ii < 24; ii++)
+        {
+            my_rsbuf[14 + 48 * jj + ii +24] = my_indicator_data[jj].AC12T_ALL_dianchang_data_buf[ii]; //电场
 
         }
 
@@ -4711,10 +4263,13 @@ void my_gprs_generate_101yaoce12T_data(uint8_t *my_rsbuf)
 /*
 功能：计数同步值
 */
+extern uint16_t my_gprs_count_time; //GPRS通信，周期数据，传递给SERVER的DTU收到的zsq的计数值
+extern uint8_t  my_gprs_RTC_buf[];
+
 void my_gprs_generate_101yaoce1_COUNTSYN_data(uint8_t *my_rsbuf)
 {
     uint8_t length = 1; //信息体个数
-    
+
     //帧头
     my_rsbuf[0] = 0x68;
     my_rsbuf[3] = 0x68;
@@ -4738,20 +4293,71 @@ void my_gprs_generate_101yaoce1_COUNTSYN_data(uint8_t *my_rsbuf)
     //数据部分
 
 
-    my_rsbuf[14] = my_indicator_data[0].count_time[0];
-    my_rsbuf[15] = my_indicator_data[0].count_time[1];
+    my_rsbuf[14] = my_gprs_count_time;
+    my_rsbuf[15] = (my_gprs_count_time>>8);
 
-    my_rsbuf[16] = my_indicator_data[0].data_time_buf[0];
-    my_rsbuf[17] = my_indicator_data[0].data_time_buf[1];
-    my_rsbuf[18] = my_indicator_data[0].data_time_buf[2];
-    my_rsbuf[19] = my_indicator_data[0].data_time_buf[3];
-    my_rsbuf[20] = my_indicator_data[0].data_time_buf[4];
-    my_rsbuf[21] = my_indicator_data[0].data_time_buf[5];
-    my_rsbuf[22] = my_indicator_data[0].data_time_buf[6];
+    my_rsbuf[16] = my_gprs_RTC_buf[0];
+    my_rsbuf[17] = my_gprs_RTC_buf[1];
+    my_rsbuf[18] = my_gprs_RTC_buf[2];
+    my_rsbuf[19] = my_gprs_RTC_buf[3];
+    my_rsbuf[20] = my_gprs_RTC_buf[4];
+    my_rsbuf[21] = my_gprs_RTC_buf[5];
+    my_rsbuf[22] = my_gprs_RTC_buf[6];
 
 
 
 
     wdz_GPRS_101check_generate(my_rsbuf); //生成校验字节
 
+}
+
+
+/*
+功能：产生报警发送使用的12个字符
+*/
+extern uint8_t my_indicator_tx_index;
+
+extern struct indicator_alarm_class my_indicator_alarm_data[];
+void my_fun_gprs_generate_12T_data(uint8_t *txbuf)
+{
+	uint8_t ii=0,jj=0;
+	
+	wdz_GPRS_string_to_array(TX_GPRS_101_ALarm_single_12T_data, my_usart1_tx_buf1);
+	for(ii=0;ii<3;ii++) //报警相的12T数据
+	{
+		if(ii==my_indicator_tx_index)
+		{
+			for(jj=0;jj<24;jj++)
+			{
+				my_usart1_tx_buf1[14+ii*48+jj]=my_indicator_alarm_data[ii].AC12T_ALL_Current_data_buf[jj];		//电流	
+			}
+				for(jj=0;jj<24;jj++)
+			{
+				my_usart1_tx_buf1[14+ii*48+jj+24]=my_indicator_alarm_data[ii].AC12T_ALL_dianchang_data_buf[jj];	//电场
+			}
+		}	
+		else //其它相利用周期数据填充
+		{
+			for(jj=0;jj<24;jj++)
+			{
+				my_usart1_tx_buf1[14+ii*48+jj]=my_indicator_data[ii].AC12T_ALL_Current_data_buf[jj];		//电流	
+			}
+				for(jj=0;jj<24;jj++)
+			{
+				my_usart1_tx_buf1[14+ii*48+jj+24]=my_indicator_data[ii].AC12T_ALL_dianchang_data_buf[jj];			//电场
+			}
+			
+			
+			
+		}
+
+		
+	}
+	
+	
+	
+	
+	
+	
+	
 }

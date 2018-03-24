@@ -37,6 +37,26 @@ extern uint8_t USART1_my_frame[];
 extern uint8_t NET_Server_status;
 extern uint16_t my_cc1101_tx_wait_time;
 extern uint8_t my_RSSI_dbm_all;
+extern uint16_t MY_Bat_value;
+
+
+//=================
+//GPRS链路状态标识，0为没有建立链路，1为建立链路了
+uint8_t my_101_DIR = 0X80; //101规约中,控制域的DIR位 最高位D8
+uint8_t my_101_PRM = 0X40; //101规约中，控制域的PRM  D7
+uint8_t my_101_FCB = 0; //控制域D6
+uint8_t my_101_FCV = 0; //控制月D5
+
+uint8_t my_101_FC = 0; //控制域，功能码
+uint8_t my_101_add_low = 0;
+uint8_t my_101_add_high = 0;
+uint8_t my_101_TI = 0;
+uint8_t my_101_VSQ_1_7 = 0;
+uint8_t my_101_VSQ_8_SQ = 0;
+uint8_t my_101_COT_low = 0;
+uint8_t my_101_COT_high = 0;
+
+//==========
 
 
 
@@ -75,6 +95,16 @@ uint8_t my_CC1101_receive_cmd_ID = 0;
 
 uint16_t my_gprs_count_time = 0; //GPRS通信，周期数据，传递给SERVER的DTU收到的zsq的计数值
 uint8_t  my_gprs_RTC_buf[7] = {0};
+
+
+
+union MY_float
+{
+float value;
+unsigned char byte[4];
+};
+
+
 //=====================函数部分
 void my_fun_set_group(void)
 {
@@ -277,10 +307,10 @@ void my_fun_gprs_time_dialog_rx(
 
 //=====GPRS对话发送 发送使用==
 void my_fun_gprs_time_dialog_tx(
-    uint16_t my_get_step,
-    uint16_t my_before_step,
-    uint16_t my_now_step,
-    uint8_t end_status,
+    uint16_t my_get_step,  //获得状态
+    uint16_t my_before_step,  //前一个状态
+    uint16_t my_now_step,   //当前准备进行状态
+    uint8_t end_status,   //结束状态
     void (*ptfun)(void)
 )
 {
@@ -446,7 +476,7 @@ void my_fun_CC1101_time_dialog_rx2(
 */
 uint8_t my_GPRS_heart_count = 0;
 extern uint16_t DTU_ADDRESS;
-uint8_t my_cc1101_error_count=0;
+uint8_t my_cc1101_error_count = 0;
 
 
 
@@ -468,29 +498,29 @@ void my_fun_CC1101_init_resume(void)
     if(my_status == 0x01 && my_rx_count > 0)
     {
         printf("------ CC1101 status=[%XH] RXBUF=%d \n", my_status, my_rx_count);
-				my_cc1101_error_count++;
-				if(my_cc1101_error_count>=300)
-					HAL_NVIC_SystemReset();
-				
+        my_cc1101_error_count++;
+        if(my_cc1101_error_count >= 300)
+            HAL_NVIC_SystemReset();
+
         my_fun_CC1101_init_reum();
     }
     if(my_status != 0x01 && my_status != 0x0D &&  my_status != 0x13  ) //0x11,接收溢出,//0X01空闲，0X0D接收，0X13发送
     {
         printf("--error CC_status=[%XH] \n", my_status);
-				my_cc1101_error_count++;
-				if(my_cc1101_error_count>=300)
-					HAL_NVIC_SystemReset();
+        my_cc1101_error_count++;
+        if(my_cc1101_error_count >= 300)
+            HAL_NVIC_SystemReset();
         my_fun_CC1101_init_reum();
         printf("--inint after CC_status=[%XH] \n", my_status);
-				
-				if(my_status==0xff)
-					HAL_NVIC_SystemReset();
+
+        if(my_status == 0xff)
+            HAL_NVIC_SystemReset();
 
     }
-		else
-		{
-			my_cc1101_error_count=0;
-		}
+    else
+    {
+        my_cc1101_error_count = 0;
+    }
 }
 
 /*
@@ -690,10 +720,10 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
         my_indicator_data[my_indicator_index].RTC_time_buf[4] = my_RTC_date.Date; //RTC时间
         my_indicator_data[my_indicator_index].RTC_time_buf[5] = my_RTC_date.Month; //RTC时间
         my_indicator_data[my_indicator_index].RTC_time_buf[6] = my_RTC_date.Year; //RTC时间
-			
-				//信号强度
-				my_indicator_data[my_indicator_index].xinhao_db=my_RSSI_dbm_all;
-			
+
+        //信号强度
+        my_indicator_data[my_indicator_index].xinhao_db = my_RSSI_dbm_all;
+
         //
 
         my_gprs_count_time = my_indicator_data[my_indicator_index].count_time[1];
@@ -709,7 +739,7 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
         if(temp_status == 0x02)
         {
 
-           
+
             //timer计数值
 
             my_indicator_alarm_data[my_indicator_index].count_time[0] = my_CC1101_COM_Fram_buf[10]; //计数值低字节
@@ -723,28 +753,28 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
             my_indicator_alarm_data[my_indicator_index].RTC_time_buf[4] = my_RTC_date.Date; //RTC时间
             my_indicator_alarm_data[my_indicator_index].RTC_time_buf[5] = my_RTC_date.Month; //RTC时间
             my_indicator_alarm_data[my_indicator_index].RTC_time_buf[6] = my_RTC_date.Year; //RTC时间
-					
-					
-					
-						
+
+
+
+
             //报警数据发送状态记录
-            if(my_indicator_alarm_data[my_indicator_index].duanlu_data != 0 && my_CC1101_COM_Fram_buf[9]==0)
+            if(my_indicator_alarm_data[my_indicator_index].duanlu_data != 0 && my_CC1101_COM_Fram_buf[9] == 0)
                 my_indicator_alarm_data[my_indicator_index].TX_status_duanlu = 0x01; //表示有报警数据产生，还没有发送。如果发送完了，把这个字节清零
-						else if( my_CC1101_COM_Fram_buf[9]!=0)
-								my_indicator_alarm_data[my_indicator_index].TX_status_duanlu = 0x01; 
+            else if( my_CC1101_COM_Fram_buf[9] != 0)
+                my_indicator_alarm_data[my_indicator_index].TX_status_duanlu = 0x01;
             else
                 my_indicator_alarm_data[my_indicator_index].TX_status_duanlu = 0x00;
 
-            if(my_indicator_alarm_data[my_indicator_index].jiedi_data != 0 && my_CC1101_COM_Fram_buf[11]==0)
+            if(my_indicator_alarm_data[my_indicator_index].jiedi_data != 0 && my_CC1101_COM_Fram_buf[11] == 0)
                 my_indicator_alarm_data[my_indicator_index].TX_status_jiedi = 0x01;
-						else if( my_CC1101_COM_Fram_buf[11]!=0)
-								my_indicator_alarm_data[my_indicator_index].TX_status_jiedi = 0x01;
+            else if( my_CC1101_COM_Fram_buf[11] != 0)
+                my_indicator_alarm_data[my_indicator_index].TX_status_jiedi = 0x01;
             else
                 my_indicator_alarm_data[my_indicator_index].TX_status_jiedi = 0x00;
-						//更新报警状态
-						my_indicator_alarm_data[my_indicator_index].duanlu_data = my_CC1101_COM_Fram_buf[9]; //短路
+            //更新报警状态
+            my_indicator_alarm_data[my_indicator_index].duanlu_data = my_CC1101_COM_Fram_buf[9]; //短路
             my_indicator_alarm_data[my_indicator_index].jiedi_data =	my_CC1101_COM_Fram_buf[11]; //接地
-							
+
 
         }
 
@@ -799,13 +829,13 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
         for(ii = 0; ii < my_length; ii++)
         {
             my_indicator_data[my_indicator_index].AC_data_buf[ii] = my_CC1101_COM_Fram_buf[9 + ii];
-					
-						if(my_indicator_data[my_indicator_index].AC_data_buf[0]==0X0C)
-						{
-							printf("======ZSQ[%d]====1.2\n",my_indicator_index);
-							
-							my_fun_display_fram_16(4,22);
-						}
+
+            if(my_indicator_data[my_indicator_index].AC_data_buf[0] == 0X0C)
+            {
+                printf("======ZSQ[%d]====1.2\n", my_indicator_index);
+
+                my_fun_display_fram_16(4, 22);
+            }
 
         }
         //报警部分
@@ -871,20 +901,20 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
         my_indicator_record_data[my_indicator_index].my_wave_alam = 0x02; //报警
         my_indicator_record_data[my_indicator_index].my_wave_tx_status_I = 1;
         my_CC1101_record_wave_last_index = my_indicator_index; //记录获得最新的录波数据指示器编号
-			
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[0]=my_indicator_index+1;
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[1]=0;
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[2]=my_indicator_alarm_data[my_indicator_index].count_time[0];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[3]=my_indicator_alarm_data[my_indicator_index].count_time[1];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[4]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[0];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[5]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[1];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[6]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[2];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[7]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[3];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[8]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[4];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[9]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[5];
-				my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[10]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[6];
 
-			
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[0] = my_indicator_index + 1;
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[1] = 0;
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[2] = my_indicator_alarm_data[my_indicator_index].count_time[0];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[3] = my_indicator_alarm_data[my_indicator_index].count_time[1];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[4] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[0];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[5] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[1];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[6] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[2];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[7] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[3];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[8] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[4];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[9] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[5];
+        my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[10] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[6];
+
+
 
         for(ii = 0; ii < my_length; ii++)
             my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[ii + 11] = my_CC1101_COM_Fram_buf[9 + ii];
@@ -898,20 +928,20 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
         my_indicator_record_data[my_indicator_index].my_wave_alam = 0x02; //报警
         my_indicator_record_data[my_indicator_index].my_wave_tx_status_E = 1;
         my_CC1101_record_wave_last_index = my_indicator_index; //记录获得最新的录波数据指示器编号
-			
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[0]=my_indicator_index+1;
-			  my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[1]=0;
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[2]=my_indicator_alarm_data[my_indicator_index].count_time[0];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[3]=my_indicator_alarm_data[my_indicator_index].count_time[1];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[4]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[0];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[5]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[1];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[6]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[2];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[7]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[3];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[8]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[4];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[9]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[5];
-				my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[10]=my_indicator_alarm_data[my_indicator_index].RTC_time_buf[6];
 
-				
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[0] = my_indicator_index + 1;
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[1] = 0;
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[2] = my_indicator_alarm_data[my_indicator_index].count_time[0];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[3] = my_indicator_alarm_data[my_indicator_index].count_time[1];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[4] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[0];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[5] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[1];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[6] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[2];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[7] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[3];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[8] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[4];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[9] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[5];
+        my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[10] = my_indicator_alarm_data[my_indicator_index].RTC_time_buf[6];
+
+
 
         for(ii = 0; ii < my_length; ii++)
             my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[ii + 11] = my_CC1101_COM_Fram_buf[9 + ii];
@@ -930,7 +960,7 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
         printf("========START DC2============\n");
         printf("---ZSQ=[%d]--TIME=[%d]-[%d]-[%d]--local time=[%d]\n", my_address, my_ZSQ_time_count[0], my_ZSQ_time_count[1], my_ZSQ_time_count[2], my_tim6_count);
         printf("ALARM:duanlu=[%XH],jiedi=[%XH]\n", my_indicator_data[my_indicator_index].duanlu_data, my_indicator_data[my_indicator_index].jiedi_data);
-				printf("RSSI=%d\n",my_indicator_data[my_indicator_index].xinhao_db);
+        printf("RSSI=%d\n", my_indicator_data[my_indicator_index].xinhao_db);
         //直流量，7个
         for(ii = 0; ii < 7; ii++)
         {
@@ -980,24 +1010,24 @@ uint8_t my_fun_dialog_CC1101_RX_1(void)
     if(temp_status == 0x53) //周期AC_record
     {
         printf("\n***960 data start—I*****\n");
-				printf("my_indicator_index=%d\n",my_indicator_index+1);
+        printf("my_indicator_index=%d\n", my_indicator_index + 1);
         for(ii = 0; ii < 960; ii++)
         {
-            xx1 = (my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[2 * ii+11]
-                   + ((my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[2 * ii + 1+11]) << 8)) / 10.0;
+            xx1 = (my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[2 * ii + 11]
+                   + ((my_indicator_record_data[my_indicator_index].my_wave_record_I_buf[2 * ii + 1 + 11]) << 8)) / 10.0;
             printf("\n %.1f", xx1);
 
         }
         printf("\n***960 data end---I*****\n");
     }
-		 if(temp_status == 0x54 ) //周期AC_record
+    if(temp_status == 0x54 ) //周期AC_record
     {
         printf("\n***960 data start—E*****\n");
-				printf("my_indicator_index=%d\n",my_indicator_index+1);
+        printf("my_indicator_index=%d\n", my_indicator_index + 1);
         for(ii = 0; ii < 960; ii++)
         {
-            xx1 = (my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[2 * ii+11]
-                   + ((my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[2 * ii + 1+11]) << 8)) / 10.0;
+            xx1 = (my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[2 * ii + 11]
+                   + ((my_indicator_record_data[my_indicator_index].my_wave_record_E_buf[2 * ii + 1 + 11]) << 8)) / 10.0;
             printf("\n %.1f", xx1);
 
         }
@@ -1042,14 +1072,179 @@ void my_fun_CC1101_send_heart_data(void)
 //========================
 //==================GPRS 对话过程=============
 
-void  my_fun_GPRS_TX_start1(void)
+void  my_fun_GPRS_TX_start1_server(void)
 {
 
     //单字节
     my_usart1_tx_buf1[0] = 0x10;
     my_usart1_tx_buf1[5] = 0x16;
 
-    my_usart1_tx_buf1[1] = 0x49;
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X00;
+    my_101_FC = 0X0B;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
+    my_usart1_tx_buf1[2] = DTU_ADDRESS;
+    my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
+    my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+    printf("my_GPRS send start1:");
+    my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
+
+#if Use_GPRS_auto_re_ok==1
+    uint8_t my_step = 0X00E1;
+    xQueueSend(myQueue02Handle, &my_step, 100);
+#endif
+}
+
+void  my_fun_GPRS_TX_start2_server(void)
+{
+
+    //单字节
+    my_usart1_tx_buf1[0] = 0x10;
+    my_usart1_tx_buf1[5] = 0x16;
+
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X00;
+    my_101_FC = 0X00;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
+    my_usart1_tx_buf1[2] = DTU_ADDRESS;
+    my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
+    my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+    printf("my_GPRS send start1:");
+    my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
+
+    //==========
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    my_101_FC = 0X09;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
+    my_usart1_tx_buf1[2] = DTU_ADDRESS;
+    my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
+    my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+
+    my_at_senddata(my_usart1_tx_buf1); //
+    printf("my_GPRS send start1:");
+    my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
+
+#if Use_GPRS_auto_re_ok==1
+    uint8_t my_step = 0X00E1;
+    xQueueSend(myQueue02Handle, &my_step, 100);
+#endif
+}
+
+void  my_fun_GPRS_TX_start3_server(void)
+{
+
+    //单字节
+    my_usart1_tx_buf1[0] = 0x10;
+    my_usart1_tx_buf1[5] = 0x16;
+
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    my_101_FC = 0X00;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
+    my_usart1_tx_buf1[2] = DTU_ADDRESS;
+    my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
+    my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+    printf("my_GPRS send start1:");
+    my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
+
+#if Use_GPRS_auto_re_ok==1
+    uint8_t my_step = 0X00E1;
+    xQueueSend(myQueue02Handle, &my_step, 100);
+#endif
+}
+
+void  my_fun_GPRS_TX_start4_server(void)
+{
+
+
+
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    my_101_FCB = 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
+
+
+
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = 0x0C; //
+    my_usart1_tx_buf1[2] = 0x0C;
+
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+
+
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+
+    my_101_TI = 0X46;
+    my_101_VSQ_1_7 = 0X01;
+    my_101_VSQ_8_SQ = 0x00;
+    my_101_VSQ_1_7 = (my_101_VSQ_1_7 | my_101_VSQ_8_SQ);
+    my_101_COT_low = 0x04;
+    my_101_COT_high = 0;
+
+    my_usart1_tx_buf1[7] = my_101_TI; //类型标识，带时标的遥测数据信息，
+    my_usart1_tx_buf1[8] = my_101_VSQ_1_7; //信息体个数
+    my_usart1_tx_buf1[9] = my_101_COT_low; //传输原因
+    my_usart1_tx_buf1[10] = my_101_COT_high;
+
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
+
+    my_usart1_tx_buf1[13] = 0x00; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x00;
+
+    my_usart1_tx_buf1[15] = 0X00;
+
+
+
+    my_usart1_tx_buf1[16] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+    my_usart1_tx_buf1[17] = 0x16;
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+    printf("my_GPRS send start1:");
+    my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
+
+#if Use_GPRS_auto_re_ok==1
+    uint8_t my_step = 0X00E1;
+    xQueueSend(myQueue02Handle, &my_step, 100);
+#endif
+}
+
+
+
+
+
+
+//=======================
+
+void  my_fun_GPRS_TX_start1(void)
+{
+
+    //单字节
+    my_usart1_tx_buf1[0] = 0x10;
+    my_usart1_tx_buf1[5] = 0x16;
+    my_101_DIR = 0X00;
+    my_101_PRM = 0X40;
+    my_101_FC = 0X09;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
     my_usart1_tx_buf1[2] = DTU_ADDRESS;
     my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
     my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
@@ -1071,7 +1266,11 @@ void  my_fun_GPRS_TX_start2(void)
     my_usart1_tx_buf1[0] = 0x10;
     my_usart1_tx_buf1[5] = 0x16;
 
-    my_usart1_tx_buf1[1] = 0x40;
+    my_101_DIR = 0X00;
+    my_101_PRM = 0X40;
+    my_101_FC = 0X00;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
     my_usart1_tx_buf1[2] = DTU_ADDRESS;
     my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
     my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
@@ -1089,46 +1288,99 @@ void  my_fun_GPRS_TX_start2(void)
 void  my_fun_GPRS_TX_start3(void)
 {
 
+
+    my_101_DIR = 0X00;
+    my_101_PRM = 0X40;
+    my_101_FCB = 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
+
+
+
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = 0x0C; //0X24 共36个信息体，每个信息体3个字节
+    my_usart1_tx_buf1[2] = 0x0C;
+
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+
+
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+
+    my_101_TI = 0X46;
+    my_101_VSQ_1_7 = 0X01;
+    my_101_VSQ_8_SQ = 0X00;
+    my_101_VSQ_1_7 = (my_101_VSQ_1_7 | my_101_VSQ_8_SQ);
+    my_101_COT_low = 0x04;
+    my_101_COT_high = 0;
+
+    my_usart1_tx_buf1[7] = my_101_TI; //类型标识，带时标的遥测数据信息，
+    my_usart1_tx_buf1[8] = my_101_VSQ_1_7; //信息体个数
+    my_usart1_tx_buf1[9] = my_101_COT_low; //传输原因
+    my_usart1_tx_buf1[10] = my_101_COT_high;
+
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
+
+    my_usart1_tx_buf1[13] = 0x00; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x00;
+
+    my_usart1_tx_buf1[15] = 0X00;
+
+
+    my_usart1_tx_buf1[16] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+    my_usart1_tx_buf1[17] = 0x16;
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+    printf("my_GPRS send start1:");
+    my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
+
+#if Use_GPRS_auto_re_ok==1
+    uint8_t my_step = 0X00E1;
+    xQueueSend(myQueue02Handle, &my_step, 100);
+#endif
+}
+
+
+//=============
+void  my_fun_GPRS_TX_OK_80(void)
+{
+
     //单字节
     my_usart1_tx_buf1[0] = 0x10;
     my_usart1_tx_buf1[5] = 0x16;
 
-    my_usart1_tx_buf1[1] = 0x0B;
+    my_usart1_tx_buf1[1] = 0x80;
     my_usart1_tx_buf1[2] = DTU_ADDRESS;
     my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
     my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
 
     my_at_senddata(my_usart1_tx_buf1); //
 
-    printf("my_GPRS send start3:");
+    printf("my_GPRS send ok:");
     my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
 
-
 #if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00E3;
-    xQueueSend(myQueue02Handle, &my_step, 100);
+    uint8_t my_step = 0;
+    if(my_GPRS_all_step == 0XE400)
+    {
+        my_step = 0X00E4;
+        xQueueSend(myQueue02Handle, &my_step, 100);
+    }
+    if(my_GPRS_all_step == 0XE500)
+    {
+
+        my_step = 0X00E5;
+        xQueueSend(myQueue02Handle, &my_step, 100);
+    }
 #endif
 }
 
-void  my_fun_GPRS_TX_start4(void)  //发送握手信号,计数同步
-{
-    wdz_GPRS_string_to_array(TX_GPRS_101_count_syn_data, my_usart1_tx_buf1); //计数同步指令
-    //修改帧 DTU地址，信息体的数据
-    my_usart1_tx_buf1[5] = my_usart1_tx_buf1[10] = DTU_ADDRESS;
-    my_usart1_tx_buf1[6] = my_usart1_tx_buf1[11] = DTU_ADDRESS >> 8;
-    my_usart1_tx_buf1[14] = my_tim6_count;
-    my_usart1_tx_buf1[15] = (my_tim6_count >> 8);
-
-    my_fun_101check_generate(my_usart1_tx_buf1, 0);
-
-    my_at_senddata(my_usart1_tx_buf1);
-
-    printf("GPRS_TX_START_data-[%XH]:", my_GPRS_all_step);
-    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
-}
 
 
-
+//==============
 
 void  my_fun_GPRS_TX_OK(void)
 {
@@ -1194,42 +1446,163 @@ void  my_fun_GPRS_TX_test1(void)
 //===
 void  my_fun_GPRS_TX_RTC_data(void)
 {
+    //单字节
     my_usart1_tx_buf1[0] = 0x10;
     my_usart1_tx_buf1[5] = 0x16;
-    my_usart1_tx_buf1[1] = 0x00;
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X00;
+    my_101_FC = 0X00;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
     my_usart1_tx_buf1[2] = DTU_ADDRESS;
     my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
-    my_fun_101check_generate(my_usart1_tx_buf1, 0);
+    my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+
     my_at_senddata(my_usart1_tx_buf1); //
-    printf("\n my_GPRS send RTC1 data:");
-    my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
-
-    wdz_GPRS_string_to_array(TX_GPRS_101_RTC_data, my_usart1_tx_buf1);
-    //修改帧 DTU地址，信息体的数据
-    my_usart1_tx_buf1[5] = my_usart1_tx_buf1[10] = DTU_ADDRESS;
-    my_usart1_tx_buf1[6] = my_usart1_tx_buf1[11] = DTU_ADDRESS >> 8;
-
-    my_usart1_tx_buf1[14] =  my_RTC_time.Seconds; //数据部分
-    my_usart1_tx_buf1[15] = 0;
-    my_usart1_tx_buf1[16] = my_RTC_time.Minutes;
-    my_usart1_tx_buf1[17] = my_RTC_time.Hours;
-    my_usart1_tx_buf1[18] = my_RTC_date.Date;
-    my_usart1_tx_buf1[19] = my_RTC_date.Month;
-    my_usart1_tx_buf1[20] = my_RTC_date.Year;
-
-    my_fun_101check_generate(my_usart1_tx_buf1, 0);
-
-    my_at_senddata(my_usart1_tx_buf1);
+	
+	//==========================
+	
+	  my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) && 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
 
 
 
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = 0x0C; //0X24 共36个信息体，每个信息体3个字节
+    my_usart1_tx_buf1[2] = 0x12;
 
-#if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00D2;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
 
+
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+
+    my_101_TI = 103;
+    my_101_VSQ_1_7 = 0X01;
+    my_101_VSQ_8_SQ = 0x00;
+    my_101_VSQ_1_7 = (my_101_VSQ_1_7 | my_101_VSQ_8_SQ);
+    my_101_COT_low = 0x07;
+    my_101_COT_high = 0;
+
+    my_usart1_tx_buf1[7] = my_101_TI; 
+    my_usart1_tx_buf1[8] = my_101_VSQ_1_7; //信息体个数
+    my_usart1_tx_buf1[9] = my_101_COT_low; //传输原因
+    my_usart1_tx_buf1[10] = my_101_COT_high;
+
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
+
+    my_usart1_tx_buf1[13] = 0x00; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x00;
+		
+		 HAL_RTC_GetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN); //读取RTC时间
+     HAL_RTC_GetTime(&hrtc, &my_RTC_time, RTC_FORMAT_BIN);
+
+    my_usart1_tx_buf1[15] =  (my_RTC_time.Seconds*1000); //数据部分
+    my_usart1_tx_buf1[16] = ((my_RTC_time.Seconds*1000)>>8);
+    my_usart1_tx_buf1[17] = my_RTC_time.Minutes;
+    my_usart1_tx_buf1[18] = my_RTC_time.Hours;
+    my_usart1_tx_buf1[19] = (my_RTC_date.Date+(my_RTC_date.WeekDay<<5));
+    my_usart1_tx_buf1[20] = my_RTC_date.Month;
+    my_usart1_tx_buf1[21] = my_RTC_date.Year;
+
+
+
+    my_usart1_tx_buf1[16] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+    my_usart1_tx_buf1[17] = 0x16;
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+	//=================
+	
 }
+
+void  my_fun_GPRS_TX_RTC_data_read(void)
+{
+    //单字节
+    my_usart1_tx_buf1[0] = 0x10;
+    my_usart1_tx_buf1[5] = 0x16;
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X00;
+    my_101_FC = 0X00;
+
+    my_usart1_tx_buf1[1] = (my_101_DIR | my_101_PRM | my_101_FC);
+    my_usart1_tx_buf1[2] = DTU_ADDRESS;
+    my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
+    my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+
+    my_at_senddata(my_usart1_tx_buf1); //
+	
+	//==========================
+	
+	  my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) && 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
+
+
+
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = 0x0C; //0X24 共36个信息体，每个信息体3个字节
+    my_usart1_tx_buf1[2] = 0x12;
+
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+
+
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+
+    my_101_TI = 103;
+    my_101_VSQ_1_7 = 0X01;
+    my_101_VSQ_8_SQ = 0x00;
+    my_101_VSQ_1_7 = (my_101_VSQ_1_7 | my_101_VSQ_8_SQ);
+    my_101_COT_low = 0x05;
+    my_101_COT_high = 0;
+
+    my_usart1_tx_buf1[7] = my_101_TI; 
+    my_usart1_tx_buf1[8] = my_101_VSQ_1_7; //信息体个数
+    my_usart1_tx_buf1[9] = my_101_COT_low; //传输原因
+    my_usart1_tx_buf1[10] = my_101_COT_high;
+
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);
+
+    my_usart1_tx_buf1[13] = 0x00; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x00;
+		
+		
+		 HAL_RTC_GetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN); //读取RTC时间
+     HAL_RTC_GetTime(&hrtc, &my_RTC_time, RTC_FORMAT_BIN);
+
+    my_usart1_tx_buf1[15] =  (my_RTC_time.Seconds*1000); //数据部分
+    my_usart1_tx_buf1[16] = ((my_RTC_time.Seconds*1000)>>8);
+    my_usart1_tx_buf1[17] = my_RTC_time.Minutes;
+    my_usart1_tx_buf1[18] = my_RTC_time.Hours;
+    my_usart1_tx_buf1[19] = (my_RTC_date.Date+(my_RTC_date.WeekDay<<5));
+    my_usart1_tx_buf1[20] = my_RTC_date.Month;
+    my_usart1_tx_buf1[21] = my_RTC_date.Year;
+
+
+
+    my_usart1_tx_buf1[16] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+    my_usart1_tx_buf1[17] = 0x16;
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+	//=================
+	
+}
+
+
+
 /*
 功能：GPRS发送周期数据
 */
@@ -1302,40 +1675,89 @@ void  my_fun_GPRS_TX_CYC1(void)  //发送握手信号
 
 }
 
-void  my_fun_GPRS_TX_CYC2(void)  //发送遥信量
+
+
+void  my_fun_GPRS_TX_CYC2(void)  //发送遥信量,总召-周期使用，无时标
 {
-    if(my_GPRS_all_step == 0XC100)
-    {
-        my_usart1_tx_buf1[0] = 0x10;
-        my_usart1_tx_buf1[5] = 0x16;
-        my_usart1_tx_buf1[1] = 0x00;
-        my_usart1_tx_buf1[2] = DTU_ADDRESS;
-        my_usart1_tx_buf1[3] = DTU_ADDRESS >> 8;
-        my_usart1_tx_buf1[4] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
-        my_at_senddata(my_usart1_tx_buf1); //
-        printf("my_GPRS send ok:");
-        my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
-
-    }
-
-    my_gprs_generate_101single_data(1, my_usart1_tx_buf1);
-    //遥信状态
-    my_usart1_tx_buf1[14] = my_indicator_data[0].duanlu_data; //A相指示器
-    my_usart1_tx_buf1[15] = my_indicator_data[0].jiedi_data;
-    my_usart1_tx_buf1[16] = my_indicator_data[1].duanlu_data; //B相指示器
-    my_usart1_tx_buf1[17] = my_indicator_data[1].jiedi_data;
-    my_usart1_tx_buf1[18] = my_indicator_data[2].duanlu_data; //C相指示器
-    my_usart1_tx_buf1[19] = my_indicator_data[2].jiedi_data;
+		uint8_t ii=0,kk=0,my_shibiao_time=0;
+    my_gprs_generate_101single_data(1, my_usart1_tx_buf1,my_shibiao_time);  //总共有56个信息体地址
+		for(ii=1;ii<=MY_GPRS_Call_Single_data_number;ii++)
+	{
+		my_usart1_tx_buf1[14+ii]=0X00;  //遥信双点信息 01为正常，0X02为故障
+		
+	}
+	
+		my_usart1_tx_buf1[14+1] = MY_yaoxin_status_OK;
+		my_usart1_tx_buf1[14+2] = MY_yaoxin_status_OK;
+		//A相状态
+	
+	  for(kk=0;kk<3;kk++)
+	{
+	  //通信环节
+		if(my_indicator_data[kk].xinhao_db>75)
+			my_usart1_tx_buf1[14+0X10*(kk+1)+1]=MY_yaoxin_status_ERROR; //采集单元通信状态
+		else
+			my_usart1_tx_buf1[14+0X10*(kk+1)+1]=MY_yaoxin_status_OK; //采集单元通信状态	
+		
+		//短路状态
+		if(my_indicator_data[kk].duanlu_data==0X01)
+		{
+			my_usart1_tx_buf1[14+0X10*(kk+1)+2]=MY_yaoxin_status_OK; //瞬时性短路
+			my_usart1_tx_buf1[14+0X10*(kk+1)+3]=MY_yaoxin_status_ERROR; 	//永久性短路
+			
+		}
+		else if(my_indicator_data[kk].duanlu_data==0X41 || my_indicator_data[kk].duanlu_data==0X81)
+		{
+			my_usart1_tx_buf1[14+0X10*(kk+1)+2]=MY_yaoxin_status_ERROR; //瞬时性短路
+			my_usart1_tx_buf1[14+0X10*(kk+1)+3]=MY_yaoxin_status_OK; 	//永久性短路
+			
+		}
+		else
+		{
+			my_usart1_tx_buf1[14+0X10*(kk+1)+2]=MY_yaoxin_status_OK; //瞬时性短路
+			my_usart1_tx_buf1[14+0X10*(kk+1)+3]=MY_yaoxin_status_OK; 	//永久性短路
+			
+		}
+		//接地状态
+		if(my_indicator_data[kk].jiedi_data==0X01)
+		{
+			my_usart1_tx_buf1[14+0X10*(kk+1)+4]=MY_yaoxin_status_ERROR;  //接地
+		}
+		else
+			my_usart1_tx_buf1[14+0X10*(kk+1)+4]=MY_yaoxin_status_OK; 
+		
+		my_usart1_tx_buf1[14+0X10*(kk+1)+5]=MY_yaoxin_status_OK;  //温度超限
+		my_usart1_tx_buf1[14+0X10*(kk+1)+6]=MY_yaoxin_status_OK;  //电流超限
+		
+		//电池状态
+		float yy=0;
+		 yy= (my_indicator_data[kk].DC_data_buf[12] +(my_indicator_data[kk].DC_data_buf[13] << 8)) / 10.0;
+		if(yy<3.8)
+			my_usart1_tx_buf1[14+0X10*(kk+1)+7]=MY_yaoxin_status_ERROR; 
+		else
+			my_usart1_tx_buf1[14+0X10*(kk+1)+7]=MY_yaoxin_status_OK;  //电池欠压报警
+		
+		
+		//线路停电状态
+		if(my_indicator_data[kk].Line_STOP==2)
+			my_usart1_tx_buf1[14+0X10*(kk+1)+8]=MY_yaoxin_status_ERROR;  //线路有电,停电了
+		else
+			my_usart1_tx_buf1[14+0X10*(kk+1)+8]=MY_yaoxin_status_OK;  //正常，有电
+	
+	}
+  
 
     //时标
-
-    my_usart1_tx_buf1[14 + 18] = my_indicator_data[0].RTC_time_buf[0];
-    my_usart1_tx_buf1[14 + 19] = my_indicator_data[0].RTC_time_buf[1];
-    my_usart1_tx_buf1[14 + 20] = my_indicator_data[0].RTC_time_buf[2];
-    my_usart1_tx_buf1[14 + 21] = my_indicator_data[0].RTC_time_buf[3];
-    my_usart1_tx_buf1[14 + 22] = my_indicator_data[0].RTC_time_buf[4];
-    my_usart1_tx_buf1[14 + 23] = my_indicator_data[0].RTC_time_buf[5];
-    my_usart1_tx_buf1[14 + 24] = my_indicator_data[0].RTC_time_buf[6];
+    if(my_shibiao_time==7)
+		{
+    my_usart1_tx_buf1[14 + MY_GPRS_Call_Single_data_number+1] =(my_RTC_time.Seconds*1000);
+    my_usart1_tx_buf1[14 + MY_GPRS_Call_Single_data_number+2] =((my_RTC_time.Seconds*1000)>>8);
+    my_usart1_tx_buf1[14 + MY_GPRS_Call_Single_data_number+3] = my_RTC_time.Minutes;
+    my_usart1_tx_buf1[14 + MY_GPRS_Call_Single_data_number+4] = my_RTC_time.Hours;
+    my_usart1_tx_buf1[14 + MY_GPRS_Call_Single_data_number+5] = my_RTC_date.Date||(my_RTC_date.WeekDay<<5);
+    my_usart1_tx_buf1[14 + MY_GPRS_Call_Single_data_number+6] = my_RTC_date.Month;
+    my_usart1_tx_buf1[14 + MY_GPRS_Call_Single_data_number+7] = my_RTC_date.Year;
+		}
 
 
     wdz_GPRS_101check_generate(my_usart1_tx_buf1);
@@ -1343,184 +1765,139 @@ void  my_fun_GPRS_TX_CYC2(void)  //发送遥信量
 
     printf("my_GPRS send CYC data-[%XH]:", my_GPRS_all_step);
     my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
-
-#if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00B2;
-    if(my_GPRS_all_step == 0XC100)
-        my_step = 0X00C2;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
-
-
 }
 
-void  my_fun_GPRS_TX_CYC3(void)  //周期发送遥测
+void  my_fun_GPRS_TX_CYC3(void)  //遥测，总召-周期
 {
-    int jj = 0;
+    uint8_t jj=0;
+	  union MY_float my_AC_data,my_vol_data,my_temperature_data;
     my_gprs_generate_101analog_data(1, my_usart1_tx_buf1);
 
-    //1温度，2电源，3参考电压，4干电池，5线上电压，6太阳能，7锂电池
-    for(jj = 0; jj < 3; jj++)
-    {
-        my_usart1_tx_buf1[14 + 12 * jj] = my_indicator_data[jj].AC_data_buf[0]; //指示器电流值
-        my_usart1_tx_buf1[15 + 12 * jj] = my_indicator_data[jj].AC_data_buf[1];
-        my_usart1_tx_buf1[16 + 12 * jj] = 0x00;
+    //
+	for(jj=0;jj<MY_GPRS_Call_Analog_data_number*5;jj++)
+	{
+		my_usart1_tx_buf1[15+jj]=0;
+	}
+	
+   for(jj=0;jj<3;jj++)
+	{
+		my_AC_data.value=(my_indicator_data[jj].AC_data_buf[0]+ (my_indicator_data[jj].AC_data_buf[1]<<8))/10.0;
+		my_vol_data.value=(my_indicator_data[jj].DC_data_buf[12]+(my_indicator_data[jj].DC_data_buf[13]<<8))/10.0;
+		my_temperature_data.value=(my_indicator_data[jj].DC_data_buf[0]+(my_indicator_data[jj].DC_data_buf[1]<<8))/10.0;
+		
+		my_usart1_tx_buf1[15+jj*5+0]=my_AC_data.byte[0];
+		my_usart1_tx_buf1[15+jj*5+1]=my_AC_data.byte[1];
+		my_usart1_tx_buf1[15+jj*5+2]=my_AC_data.byte[2];
+		my_usart1_tx_buf1[15+jj*5+3]=my_AC_data.byte[3];
+		my_usart1_tx_buf1[15+jj*5+4]=0;
+		
+		my_usart1_tx_buf1[15+20+jj*5+0]=my_temperature_data.byte[0];
+		my_usart1_tx_buf1[15+20+jj*5+1]=my_temperature_data.byte[1];
+		my_usart1_tx_buf1[15+20+jj*5+2]=my_temperature_data.byte[2];
+		my_usart1_tx_buf1[15+20+jj*5+3]=my_temperature_data.byte[3];
+		my_usart1_tx_buf1[15+20+jj*5+4]=0;
+		
+		my_usart1_tx_buf1[15+40+jj*5+0]=my_vol_data.byte[0];
+		my_usart1_tx_buf1[15+40+jj*5+1]=my_vol_data.byte[1];
+		my_usart1_tx_buf1[15+40+jj*5+2]=my_vol_data.byte[2];
+		my_usart1_tx_buf1[15+40+jj*5+3]=my_vol_data.byte[3];
+		my_usart1_tx_buf1[15+40+jj*5+4]=0;
+		
+		
+	}
+       
+//        printf("ZSQ[%d]-A=%.1f,E=%.1f\n", jj + 1,
+//               (my_indicator_data[jj].AC_data_buf[1] * 256 + my_indicator_data[jj].AC_data_buf[0]) / 10.0,
+//               (my_indicator_data[jj].AC_data_buf[3] * 256 + my_indicator_data[jj].AC_data_buf[2]) / 10.0
+//              );
 
-        my_usart1_tx_buf1[17 + 12 * jj] = my_indicator_data[jj].DC_data_buf[0 * 2]; //1温度
-        my_usart1_tx_buf1[18 + 12 * jj] = my_indicator_data[jj].DC_data_buf[0 * 2 + 1];
-        my_usart1_tx_buf1[19 + 12 * jj] = 0x00;
-
-        my_usart1_tx_buf1[20 + 12 * jj] = my_indicator_data[jj].AC_data_buf[2]; //指示器电场
-        my_usart1_tx_buf1[21 + 12 * jj] = my_indicator_data[jj].AC_data_buf[3];
-        my_usart1_tx_buf1[22 + 12 * jj] = 0x00;
-
-        my_usart1_tx_buf1[23 + 12 * jj] = my_indicator_data[jj].DC_data_buf[6 * 2]; //7锂电池
-        my_usart1_tx_buf1[24 + 12 * jj] = my_indicator_data[jj].DC_data_buf[6 * 2 + 1];
-        my_usart1_tx_buf1[25 + 12 * jj] = 0x00;
-
-				printf("ZSQ[%d]-A=%.1f,E=%.1f\n",jj+1,
-			(my_indicator_data[jj].AC_data_buf[1]*256+my_indicator_data[jj].AC_data_buf[0])/10.0,
-			(my_indicator_data[jj].AC_data_buf[3]*256+my_indicator_data[jj].AC_data_buf[2])/10.0
-			);
-    }
     //系统重启，发送特殊数据处理  0XFB，指示器重启为0X11
     if(my_system_restart_status == 1)
     {
-        for(jj = 0; jj < 3; jj++)
-        {
-            my_usart1_tx_buf1[14 + 12 * jj] = 0X00; //
-            my_usart1_tx_buf1[15 + 12 * jj] = 0X00;
-            my_usart1_tx_buf1[16 + 12 * jj] = 0X00;
-
-            my_usart1_tx_buf1[17 + 12 * jj] = 0XFB; //
-            my_usart1_tx_buf1[18 + 12 * jj] = 0XFB;
-            my_usart1_tx_buf1[19 + 12 * jj] = 0XFB;
-
-            my_usart1_tx_buf1[20 + 12 * jj] = 0X00; //
-            my_usart1_tx_buf1[21 + 12 * jj] = 0X00;
-            my_usart1_tx_buf1[22 + 12 * jj] = 0X00;
-
-            my_usart1_tx_buf1[23 + 12 * jj] = 0XFB; //
-            my_usart1_tx_buf1[24 + 12 * jj] = 0XFB;
-            my_usart1_tx_buf1[25 + 12 * jj] = 0XFB;
-
-
-        }
+     }
         my_system_restart_status = 0;
 
-    }
-
-
-    //my_usart1_tx_buf1[MY_GPRS_Call_Analog_data_number*3+10+6-2]=my_fun_101check_generate(my_usart1_tx_buf1,0);
+    
     wdz_GPRS_101check_generate(my_usart1_tx_buf1);
     my_at_senddata(my_usart1_tx_buf1);
 
     printf("my_GPRS send CYC data-[%XH]:", my_GPRS_all_step);
     my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
-		
 
-
-#if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00B3;
-    if(my_GPRS_all_step == 0XC200)
-        my_step = 0X00C3;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
 
 }
 
 
 void  my_fun_GPRS_TX_CYC4(void)  //  环境
 {
+	 union MY_float my_DTU_vol_data;
+	
     my_gprs_generate_101MCU_data(1, my_usart1_tx_buf1);
+	
+		my_DTU_vol_data.value=MY_Bat_value/10.0;
+	  my_usart1_tx_buf1[15+0]=my_DTU_vol_data.byte[0];
+		my_usart1_tx_buf1[15+1]=my_DTU_vol_data.byte[0];
+		my_usart1_tx_buf1[15+2]=my_DTU_vol_data.byte[0];
+		my_usart1_tx_buf1[15+3]=my_DTU_vol_data.byte[0];
+		my_usart1_tx_buf1[15+4]=0;
+	  
 
     wdz_GPRS_101check_generate(my_usart1_tx_buf1);
+	
     my_at_senddata(my_usart1_tx_buf1);
 
     printf("my_GPRS send CYC data-[%XH]:", my_GPRS_all_step);
     my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
 
-#if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00B4;
-    if(my_GPRS_all_step == 0XC300)
-        my_step = 0X00C4;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
-
 }
 
-void  my_fun_GPRS_TX_CYC5(void)  //  周期遥测补充
+void  my_fun_GPRS_TX_CYC5(void)  //  总召结束
 {
-    my_gprs_generate_101yaoce2_data(my_usart1_tx_buf1);
-    my_at_senddata(my_usart1_tx_buf1);
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) && 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
 
-    printf("my_GPRS send CYC data AC2-[%XH]:", my_GPRS_all_step);
-    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = 0x0C; //
+    my_usart1_tx_buf1[2] = 0x0C;
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+		
+    my_101_TI = 0X46;
+    my_101_VSQ_1_7 = 0X01;
+    my_101_VSQ_8_SQ = 0x00;
+    my_101_VSQ_1_7 = (my_101_VSQ_1_7 | my_101_VSQ_8_SQ);
+    my_101_COT_low = 10;
+    my_101_COT_high = 0;
 
-#if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00B5;
-    if(my_GPRS_all_step == 0XC400)
-        my_step = 0X00C5;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
+    my_usart1_tx_buf1[7] = my_101_TI; //类型标识，带时标的遥测数据信息，
+    my_usart1_tx_buf1[8] = my_101_VSQ_1_7; //信息体个数
+    my_usart1_tx_buf1[9] = my_101_COT_low; //传输原因
+    my_usart1_tx_buf1[10] = my_101_COT_high;
 
-}
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
 
-void  my_fun_GPRS_TX_CYC6(void)  //  周期遥测补充
-{
-    my_gprs_generate_101yaoce12T_data(my_usart1_tx_buf1);
-    my_at_senddata(my_usart1_tx_buf1);
+    my_usart1_tx_buf1[13] = 0x00; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x00;
 
-    printf("my_GPRS send CYC data AC12T-[%XH]:", my_GPRS_all_step);
-    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
+    my_usart1_tx_buf1[15] = 20;
 
-#if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00B6;
-    if(my_GPRS_all_step == 0XC500)
-        my_step = 0X00C6;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
+    my_usart1_tx_buf1[16] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+    my_usart1_tx_buf1[17] = 0x16;
 
-}
-void  my_fun_GPRS_TX_CYC7(void)  //  周期遥测补充
-{
-    my_gprs_generate_101yaoce1_COUNTSYN_data(my_usart1_tx_buf1);
-    my_at_senddata(my_usart1_tx_buf1);
-
-    printf("my_GPRS send CYC data CountCYC -[%XH]:", my_GPRS_all_step);
-    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
-
-#if Use_GPRS_auto_re_ok==1
-
-    uint8_t my_step = 0X00B7;
-    if(my_GPRS_all_step == 0XC600)
-        my_step = 0X00C7;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
+    my_at_senddata(my_usart1_tx_buf1); //
 
 }
 
-void  my_fun_GPRS_TX_CYC8(void)  //  激活终止
-{   //68 12 12 68 73 01 00 09 84 14 01 00 00 41 68 05 A1 00 00 6C 00 2D FE 16
-    wdz_GPRS_string_to_array(TX_GPRS_101_CYC7_data, my_usart1_tx_buf1); //计数同步指令
-    //修改帧 DTU地址，信息体的数据
-    my_usart1_tx_buf1[5] = my_usart1_tx_buf1[10] = DTU_ADDRESS;
-    my_usart1_tx_buf1[6] = my_usart1_tx_buf1[11] = DTU_ADDRESS >> 8;
 
-    my_fun_101check_generate(my_usart1_tx_buf1, 0);
 
-    my_at_senddata(my_usart1_tx_buf1);
 
-    printf("my_GPRS send CYC data-[%XH]:", my_GPRS_all_step);
-    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
-
-#if Use_GPRS_auto_re_ok==1
-    uint8_t my_step = 0X00C8;
-    xQueueSend(myQueue02Handle, &my_step, 100);
-#endif
-
-}
 
 
 
@@ -2463,11 +2840,39 @@ void  my_fun_GPRS_TX_rec_data(void)  //
 uint8_t my_fun_GPRS_RX_test1(void) //此函数为结束函数，收到OK帧后，结束对话过程
 {
     //握手结束
-    if(my_GPRS_all_step == 0X00E4)
+    if(my_GPRS_all_step == 0X00E3 || my_GPRS_all_step == 0X0048)
     {
         printf("GPRS==TCP==start time is over-1!!\n\n");
         NET_Server_status = 1;
+
     }
+
+    //RTC同步
+    else if(my_GPRS_all_step == 0X00D1)
+    {
+        //RTC时间处理
+        uint16_t my_temp16 = 0;
+        my_RTC_date.Date =  (USART1_my_frame[19] &&0x1F);
+				my_RTC_date.WeekDay =((USART1_my_frame[19]>>5)&&0x07);		
+        my_RTC_date.Month = USART1_my_frame[20];
+        my_RTC_date.Year = USART1_my_frame[21];
+        HAL_RTC_SetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN);
+
+        my_temp16 = USART1_my_frame[16];
+        my_temp16 = (my_temp16 << 8) + USART1_my_frame[15];
+        my_RTC_time.Seconds = my_temp16/1000;
+        my_RTC_time.Minutes = USART1_my_frame[17];
+        my_RTC_time.Hours = USART1_my_frame[18];
+        HAL_RTC_SetTime(&hrtc, &my_RTC_time, RTC_FORMAT_BIN);
+        //
+        printf("GPRS RX==RTC time =====!!\n");
+    }
+		
+		
+		
+		
+
+
     //计数值同步指令
     else if(my_GPRS_all_step == 0X00E5)
     {
@@ -2484,28 +2889,7 @@ uint8_t my_fun_GPRS_RX_test1(void) //此函数为结束函数，收到OK帧后，结束对话过程
     {
         printf("GPRS RX==heart==time is over-3!!\n\n");
     }
-    //RTC同步
-    else if(my_GPRS_all_step == 0X00D1)
-    {
-        //RTC时间处理
-        uint16_t my_temp16 = 0;
-        my_RTC_date.Date = USART1_my_frame[18];
-        my_RTC_date.Month = USART1_my_frame[19];
-        my_RTC_date.Year = USART1_my_frame[20];
-        HAL_RTC_SetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN);
-
-        my_temp16 = USART1_my_frame[15];
-        my_temp16 = (my_temp16 << 8) + USART1_my_frame[14];
-        my_RTC_time.Seconds = my_temp16;
-        my_RTC_time.Minutes = USART1_my_frame[16];
-        my_RTC_time.Hours = USART1_my_frame[17];
-        HAL_RTC_SetTime(&hrtc, &my_RTC_time, RTC_FORMAT_BIN);
-
-
-
-        //
-        printf("GPRS RX==RTC time =====!!\n");
-    }
+    
     else if(my_GPRS_all_step == 0X00D2)
     {
         printf("GPRS RX==RTC time FINISH===!!\n\n");
@@ -2553,7 +2937,7 @@ uint8_t my_fun_GPRS_RX_test1(void) //此函数为结束函数，收到OK帧后，结束对话过程
     }
     else if(my_GPRS_all_step == 0X0041)
     {
-        printf("GPRS==GPRS dbp==%d-ZSQ=[%d]-[%d]-[%d]!!\r\n",MY_AT_CSQ_Value,my_indicator_data[0].xinhao_db,my_indicator_data[1].xinhao_db,my_indicator_data[2].xinhao_db);
+        printf("GPRS==GPRS dbp==%d-ZSQ=[%d]-[%d]-[%d]!!\r\n", MY_AT_CSQ_Value, my_indicator_data[0].xinhao_db, my_indicator_data[1].xinhao_db, my_indicator_data[2].xinhao_db);
     }
     else if(my_GPRS_all_step == 0X0031)
     {
@@ -3236,9 +3620,9 @@ uint8_t my_fun_dialog_CC1101_RX_0(void)
         //获得地址--发送源
         my_address = my_CC1101_COM_Fram_buf[2]; //帧中的发送源地址
         my_cc1101_dest_address = my_address; //修改CC1101的目的地址，为发送做准备使用
-			
-			  //printf("@@@@@ ID=%d, RSSI=%d \n",my_address,my_RSSI_dbm_all) ; 
-				my_indicator_data[my_address-1].xinhao_db=my_RSSI_dbm_all; //存储信号强度
+
+        //printf("@@@@@ ID=%d, RSSI=%d \n",my_address,my_RSSI_dbm_all) ;
+        my_indicator_data[my_address - 1].xinhao_db = my_RSSI_dbm_all; //存储信号强度
 
 //        my_address_dest = my_CC1101_COM_Fram_buf[3]; //发送目的地址
 #if Debug_uart_out_cc1101_rx_data_status==1
@@ -3292,19 +3676,19 @@ uint8_t my_fun_dialog_CC1101_RX_0(void)
     }
     my_cc1101_tx_wait_time = 2000;
 //================
-	
-	if(my_CC1101_receive_cmd_ID==0X2F)
-	{
-		
-		printf("config prarameter is start==ZSQ[%d]!!!\n",my_address);
-	}
-	else if(my_CC1101_receive_cmd_ID==0X4F)
-	{
-		
-		printf("config prarameter is finish!==ZSQ[%d]!!\n",my_address);
-	}
 
-	//===============
+    if(my_CC1101_receive_cmd_ID == 0X2F)
+    {
+
+        printf("config prarameter is start==ZSQ[%d]!!!\n", my_address);
+    }
+    else if(my_CC1101_receive_cmd_ID == 0X4F)
+    {
+
+        printf("config prarameter is finish!==ZSQ[%d]!!\n", my_address);
+    }
+
+    //===============
     return my_re;
 
 
@@ -3320,62 +3704,114 @@ void my_fun_CC1101_TX_config_parmeter(void)
     uint8_t *pt;
     //uint16_t my_temp16 = my_tim6_count; //同步计数值
     pt = my_cc1101_tx_buf;
-		uint16_t st_len=5;
+    uint16_t st_len = 5;
     pt[0] = 0x68;
-    pt[1] = st_len; 
-		pt[2] = (st_len>>8);
-		pt[3]=pt[1]; 
-		pt[4] =pt[2];
-		pt[5] =0x68;
-	
-		pt[6] =0x3F;
+    pt[1] = st_len;
+    pt[2] = (st_len >> 8);
+    pt[3] = pt[1];
+    pt[4] = pt[2];
+    pt[5] = 0x68;
+
+    pt[6] = 0x3F;
     pt[7] = my_CC1101_chip_address; //代表DTU的CC1101地址，为0XFE,，0XFD为调试器的地址，01,02,03---为指示器地址
     pt[8] = my_cc1101_dest_address; //目标地址
     //信息内容,5长度的时候，没有需要设置的数据
-		if(st_len==5)
-		{
-		pt[9] =0X01;
-		pt[10] =0X02;
-		}
+    if(st_len == 5)
+    {
+        pt[9] = 0X01;
+        pt[10] = 0X02;
+    }
     //===
-		//RTC设置部分
-		{
-			HAL_RTC_GetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN);
-			HAL_RTC_GetTime(&hrtc, &my_RTC_time, RTC_FORMAT_BIN);
-			
-			st_len=st_len+9;
-			
-				pt[1] = st_len; 
-				pt[2] = (st_len>>8);
-				pt[3]=pt[1]; 
-				pt[4] =pt[2];
-		
-				pt[9] =0X01;
-				pt[10] =0X40;
-		
-		
-			pt[11] =my_tim6_count;
-			pt[12] =(my_tim6_count>>8);
-			
-			pt[13] =my_RTC_time.Seconds;
-			pt[14] =0;
-			pt[15] =my_RTC_time.Minutes;
-			pt[16] =my_RTC_time.Hours;
-			pt[17] =my_RTC_date.Date;
-			pt[18] =my_RTC_date.Month;
-			pt[19] =my_RTC_date.Year;
-			
-		}
+    //RTC设置部分
+    {
+        HAL_RTC_GetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN);
+        HAL_RTC_GetTime(&hrtc, &my_RTC_time, RTC_FORMAT_BIN);
+
+        st_len = st_len + 9;
+
+        pt[1] = st_len;
+        pt[2] = (st_len >> 8);
+        pt[3] = pt[1];
+        pt[4] = pt[2];
+
+        pt[9] = 0X01;
+        pt[10] = 0X40;
 
 
-    pt[st_len+6] = my_fun_101check_generate(pt, 1);
-    pt[st_len+7] = 0x16;
+        pt[11] = my_tim6_count;
+        pt[12] = (my_tim6_count >> 8);
 
-    CC1101SendPacket_add( pt, st_len+8,  ADDRESS_CHECK, my_cc1101_dest_address);
+        pt[13] = my_RTC_time.Seconds;
+        pt[14] = 0;
+        pt[15] = my_RTC_time.Minutes;
+        pt[16] = my_RTC_time.Hours;
+        pt[17] = my_RTC_date.Date;
+        pt[18] = my_RTC_date.Month;
+        pt[19] = my_RTC_date.Year;
+
+    }
+
+
+    pt[st_len + 6] = my_fun_101check_generate(pt, 1);
+    pt[st_len + 7] = 0x16;
+
+    CC1101SendPacket_add( pt, st_len + 8,  ADDRESS_CHECK, my_cc1101_dest_address);
     printf("after CC TX my_CC1101_all_step=[%XH]\n", my_CC1101_all_step);
 
 #if Debug_uart_out_cc1101_tx_data_status==1
     my_fun_display_buf_16(pt, 8, 1); //测试使用
 #endif
+
+}
+
+//总召确认
+void  my_fun_GPRS_TX_Call_0(void)
+{
+
+    my_fun_GPRS_TX_OK_80();
+
+
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) && 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
+
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = 0x0C; //
+    my_usart1_tx_buf1[2] = 0x0C;
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+		
+    my_101_TI = 0X46;
+    my_101_VSQ_1_7 = 0X01;
+    my_101_VSQ_8_SQ = 0x00;
+    my_101_VSQ_1_7 = (my_101_VSQ_1_7 | my_101_VSQ_8_SQ);
+    my_101_COT_low = 0x07;
+    my_101_COT_high = 0;
+
+    my_usart1_tx_buf1[7] = my_101_TI; //类型标识，带时标的遥测数据信息，
+    my_usart1_tx_buf1[8] = my_101_VSQ_1_7; //信息体个数
+    my_usart1_tx_buf1[9] = my_101_COT_low; //传输原因
+    my_usart1_tx_buf1[10] = my_101_COT_high;
+
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
+
+    my_usart1_tx_buf1[13] = 0x00; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x00;
+
+    my_usart1_tx_buf1[15] = 20;
+
+    my_usart1_tx_buf1[16] = my_fun_101check_generate(my_usart1_tx_buf1, 0);
+    my_usart1_tx_buf1[17] = 0x16;
+
+    my_at_senddata(my_usart1_tx_buf1); //
+
+    //printf("my_GPRS send start1:");
+    //my_fun_display_buf_16(my_usart1_tx_buf1, 6, 1);
 
 }

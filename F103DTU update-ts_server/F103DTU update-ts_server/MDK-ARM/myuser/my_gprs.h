@@ -63,60 +63,20 @@ uint8_t wdz_GPRS_101char_check(uint8_t *buffer);
 void wdz_GPRS_101check_generate(uint8_t *buffer);
 
 uint8_t my_usart_GPRS_101frame(uint8_t usart_port);
-uint8_t WDZ_GPRS_101receive_testactive(uint8_t Link_control,uint8_t type_identification,uint8_t transmit_reason,uint16_t time);
-uint8_t WDZ_GPRS_101transmint_commd_wait_commd(uint8_t type,uint8_t *txbuf,uint8_t address_type,uint8_t *rxbuf);
-uint8_t WDZ_GPRS_101transmint_commd_wait_commd2(uint8_t type,uint8_t *txbuf,uint8_t address_type,uint8_t *rxbuf,uint16_t my_temp_dtu_address);  //type为类型，1为固定长度，2为非固定长度，txbuf为发送指令数组
 
 
-void my_gprs_generate_101single_data(uint8_t temp,uint8_t *my_rsbuf); //生成 遥信发送数据包
+void my_gprs_generate_101single_data(uint8_t temp,uint8_t *my_rsbuf,uint8_t shibiao); //生成 遥信发送数据包
 void my_gprs_generate_101analog_data(uint8_t temp,uint8_t *my_rsbuf); //生成 遥测发送数据包
 void my_gprs_generate_101MCU_data(uint8_t temp,uint8_t *my_rsbuf);    //生成 环境数据发送数据包
-void my_gprs_generate_101Alarm_Notime_data(uint8_t temp,uint8_t *my_rsbuf);//生成，无时标的报警数据包
-void my_gprs_generate_101Alarm_Time_data(uint8_t temp,uint8_t *my_rsbuf);// 生成，有时标的报警数据包
 
-//历史数据查询使用
-//生成历史遥信数据1帧数据，temp为1表示正常，为0表示生成0数据包，my_buf为从EEPROM中读取到一帧周期数据，含遥信和遥测，环境参数，my_rsbuf为最终生成的指令响应帧
-void my_gprs_generate_101single_history_data(uint8_t temp,uint8_t *my_buf,uint8_t *my_rsbuf);
-void my_gprs_generate_101analog_history_data(uint8_t temp,uint8_t *my_buf,uint8_t *my_rsbuf);
-void my_gprs_generate_101MCU_history_data(uint8_t temp,uint8_t *my_buf, uint8_t *my_rsbuf);
-void my_gprs_generate_101Alarm_Time_history_data(uint8_t temp,uint8_t *my_buf,uint8_t *my_rsbuf);
-
-
-
-
-void WDZ_GPRS_101Transmit_OKdata(void); //发送肯定确认
-
-uint8_t WDZ_GPRS_101Transmit_Link_data(void);//发送建立链路数据
-//uint8_t WDZ_GPRS_101transmit_heartdata(void);  //发送心跳数据
-//uint8_t WDZ_GPRS_101transmit_Cycle_data(void);  //发送周期数据
-uint8_t WDZ_GPRS_101Transmit_Alarm_Data(void);//主动发送报警数据
-
-uint8_t WDZ_GPRS_101transmit_Cycle_realtime_data(void);//主动发送周期实时数据，如果没有历史数据就发送
-uint8_t WDZ_GPRS_101transmit_Cycle_TH_data(void);
-
-void my_re_transmit_alarmdata(void); //补发报警历史数据
-
-void WDZ_GPRS_101Resiver_Analyse(void); //GPRS接收到的101指令进行分析，下面的程序都是他的子程序
-
-uint8_t WDZ_GPRS_101Resiver_AdjustTime_data(void);  //接收校时数据包
-uint8_t WDZ_GPRS_101Resiver_Call_Data(void); //接收总召数据包
-uint8_t WDZ_GPRS_101Resiver_ResetMCU_Data(void);//接收复位进程命令，重启MCU
-uint8_t WDZ_GPRS_101Resiver_Adjustvalue_data(void);//接收数据，设置参数
-uint8_t WDZ_GPRS_101Resiver_CallHistory_data(void); //总召历史数据，把以前没有发送出去的数据补发出去
-uint8_t WDZ_GPRS_101Resiver_AdjustTimeSimple_data(void);//接收时钟同步指令，简化版
-uint8_t WDZ_GPRS_101Resiver_ControlMonitor_Data(void);  //翻牌指令
-uint8_t WDZ_GPRS_101Resiver_Cycle_analog_time_Data(void); //设置指示器遥测数据周期时间
 
 void my_GPRS_101_geneate_FCBword(uint8_t *my_rsbuf); //产生控制域码
-void WDZ_GPRS_Adjust_value(uint8_t *rsbuf); //完成设置参数的各项功能,子函数利用GPRS收到的参数设置命令，设置对应参数
 
-uint8_t WDZ_GPRS_Phonenumber_check(uint8_t *phone_source_buf1,uint8_t *phone_getnew_buf2);//进行电话号码在电话薄中检查
+
 void my_save_PTTO_EEROM(uint32_t mypt,uint32_t tableaddress);  //存32位地址的低3个字节到eerpom中
-uint8_t WDZ_GPRS_101transmit_analog_data(void);  //发送433模块收到的遥测数据
-
 
 //-----测试用函数-----
-void my_test_calldata_to_GPRS_array(void); //测试用，把总召数据，写入到GRPS发送数组中，然后生成发送数据帧，遥信，遥测、环境数据帧，发送到UART5
+
 
 void my_reset_mcu(void); //重启MCU通过软命令
 
@@ -125,7 +85,7 @@ void my_display_ASCIIdata(uint8_t *rsbuf);
 #define TX_History_cyc_data_record 5  //历史数据的发送个数!!!!
 
 
-int my_GPRS_AT_CSQ(void); //发送信号质量
+//int my_GPRS_AT_CSQ(void); //发送信号质量
 void my_gprs_generate_101CSQ_data(uint8_t temp,uint8_t *my_rsbuf);
 void my_gprs_generate_101yaoce2_data(uint8_t *my_rsbuf);
 void my_gprs_generate_101yaoce12T_data(uint8_t *my_rsbuf);

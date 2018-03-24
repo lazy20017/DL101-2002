@@ -48,6 +48,7 @@ struct indicator_class
     uint8_t count_time[2];  //全局同步值
     uint8_t xinhao_db; //信号强度
     uint8_t TX_status;  //数据发送状态，发送完为0，没有发送为1
+		uint8_t Line_STOP;  //线路停电状态，1为正常，2为停电
 
 };
 
@@ -91,6 +92,7 @@ struct indicator_alarm_class
     uint8_t xinhao_db; //信号强度
     uint8_t TX_status_duanlu;  //短路数据发送状态，发送完为0，没有发送为1
 		uint8_t TX_status_jiedi;   //接地数据发送状态，发送完为0，没有发送为1
+	  uint8_t Line_STOP;  //线路停电状态，1为正常，2为停电
 
 };
 

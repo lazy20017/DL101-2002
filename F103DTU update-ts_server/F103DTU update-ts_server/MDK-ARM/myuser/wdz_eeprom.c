@@ -453,8 +453,8 @@ uint8_t MY_GPRS_MCU_RsBuf[8];  //存储，周期性电池电压、太阳能电压、温度、湿度共4
 uint8_t MY_GPRS_Call_Single_data_buf[40]= {0};
 uint8_t MY_GPRS_Call_Analog_data_buf[110]= {0};
 uint8_t MY_GPRS_Call_Time_data_buf[7]= {0};
-uint8_t MY_GPRS_Call_Single_data_number=0X12;  //18个信息体，6*3，可以带3个支线，每个信息体1个字节
-uint8_t MY_GPRS_Call_Analog_data_number=0X24;  // 36  36/3=12  12/3=4  每个指示器4个数据，电流、电场、温度、内部电压，共36个信息体，每个信息体3个字节
+uint8_t MY_GPRS_Call_Single_data_number=56; //按国标，很多是无用的
+uint8_t MY_GPRS_Call_Analog_data_number=12;  // 指示器的遥测量数据个数，1条之路的3个指示器
 uint8_t MY_GPRS_Call_Status=0;    //存储获得总召数据状态，为1表示有总召数据，为0表示没有总召数据
 
 uint8_t MY_EEPROM_Buf[256]= {0}; //用来存储EEPROM中，读出的数据
