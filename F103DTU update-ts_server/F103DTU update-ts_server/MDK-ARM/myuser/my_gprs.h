@@ -65,8 +65,8 @@ void wdz_GPRS_101check_generate(uint8_t *buffer);
 uint8_t my_usart_GPRS_101frame(uint8_t usart_port);
 
 
-void my_gprs_generate_101single_data(uint8_t temp,uint8_t *my_rsbuf,uint8_t shibiao); //生成 遥信发送数据包
-void my_gprs_generate_101analog_data(uint8_t temp,uint8_t *my_rsbuf); //生成 遥测发送数据包
+void my_gprs_generate_101single_data(uint8_t temp,uint8_t *my_rsbuf,uint8_t shibiao,uint8_t my_cot); //生成 遥信发送数据包
+void my_gprs_generate_101analog_data(uint8_t temp,uint8_t *my_rsbuf,uint8_t shibiao,uint8_t my_cot); //生成 遥测发送数据包
 void my_gprs_generate_101MCU_data(uint8_t temp,uint8_t *my_rsbuf);    //生成 环境数据发送数据包
 
 

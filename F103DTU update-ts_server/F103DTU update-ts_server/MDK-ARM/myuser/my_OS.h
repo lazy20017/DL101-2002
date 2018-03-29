@@ -146,6 +146,12 @@ void  my_fun_GPRS_TX_start4_server(void);
 void  my_fun_GPRS_TX_OK_80(void);
 void  my_fun_GPRS_TX_Call_0(void);
 void  my_fun_GPRS_TX_RTC_data_read(void);
+void  my_fun_GPRS_TX_test_data(void);
+void  my_fun_GPRS_TX_heart_toserver_data(void);
+void  my_fun_GPRS_TX_CYC2_B(void);  //发送遥信量,周期，有时标
+void  my_fun_GPRS_TX_CYC3_B(void);  //遥测，周期，有时标
+void  my_fun_GPRS_TX_ALarm_data_yaoxin(void);
+void  my_fun_GPRS_TX_ALarm_data_yaoce(void);
 
 #define MY_yaoxin_status_OK  0X01    //如果采用双点信息，就是0X01正常，0x02故障。如果是单点信息，00为正常，01为故障
 #define MY_yaoxin_status_ERROR 0x02

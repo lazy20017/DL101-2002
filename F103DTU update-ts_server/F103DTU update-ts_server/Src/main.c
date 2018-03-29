@@ -95,7 +95,7 @@ extern uint16_t my_tim6_count;
 uint8_t my_usart1_tx_buf1[270]= {0x10,0x49,0x01,0x02,0x13,0x16};
 uint8_t my_system_restart_status=0;  //系统重启标识，1为重启，0为正常
 
-uint16_t DTU_ADDRESS=65109;  //DTU地址号****
+uint16_t DTU_ADDRESS=65107;  //DTU地址号****
 
 extern uint16_t my_CC1101_sync_word;
 extern uint8_t my_CC1101_change_channer;
@@ -330,7 +330,7 @@ int main(void)
     初始化M35模块
     */
     //M35_PWREN_CONTROL_OFF; //给M35断电,调试433时开启，调试使用，正式使用屏蔽掉
-    my_init_m35(); //调试433时关闭
+    //my_init_m35(); //调试433时关闭
 
 #endif
     //HAL_Delay(1000);

@@ -1318,7 +1318,7 @@ void my_fun_get_Line_stop_Efild(void)
 		if(ADC2_Filer_value_buf_2[0][1]>400 && ADC2_Filer_value_buf_2[1][1]>MY_Efile_Zero_data)
 		{
 				fun_wave2_to_wave3();
-        my_Fault_Current_End_Status = 0XF3;
+        my_Fault_Current_End_Status = 0XF3; //大于400A
         my_Fault_E_Fild_End_Status = 00;
         printf("==return Short over 400--1 A_S=%d  E_S=%d\n",my_Fault_Current_End_Status,my_Fault_E_Fild_End_Status);
         my_zsq_ALarm_send_status = 1;
@@ -1360,7 +1360,7 @@ void my_fun_get_Line_stop_Efild(void)
     if(my_Line_Current_stop_status == 1 && my_Line_Current_stop_last_status == 3 ) //上次正常，现在停电，上传
     {
         fun_wave2_to_wave3();
-        my_Fault_Current_End_Status = 0xFE;
+        my_Fault_Current_End_Status = 0xFE;  //停电
         my_Fault_E_Fild_End_Status = 0xFE;
         my_Line_Current_stop_last_status = 1; //停电
         printf("==return normal--2---stop A=%d  E=%d\n",my_Fault_Current_End_Status,my_Fault_E_Fild_End_Status);

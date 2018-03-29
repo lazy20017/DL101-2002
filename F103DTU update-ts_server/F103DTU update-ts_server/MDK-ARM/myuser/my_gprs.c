@@ -605,7 +605,7 @@ extern uint8_t MY_GPRS_Call_Analog_data_number;
 */
 
 #define my_single_inf_num 2   //遥信使用的单点信息为1，双点信息为2
-void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_shibiao_time)
+void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_shibiao_time,uint8_t my_cot)
 {
     uint8_t length = 0;
 
@@ -622,7 +622,7 @@ void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_
         my_101_DIR = 0X80;
         my_101_PRM = 0X40;
         if(my_GPRS_all_count == 1)
-            my_101_FCB = (~my_101_FCB) && 0X20;
+            my_101_FCB = (~my_101_FCB) & 0X20;
         my_101_FCV = 0X10;
         my_101_FC = 0X03;
 
@@ -632,10 +632,14 @@ void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_
 
         my_rsbuf[5] = DTU_ADDRESS;
         my_rsbuf[6] = (DTU_ADDRESS >> 8);
-
+				
+				if(my_shibiao_time==7)
         my_rsbuf[7] = 31; //TI  遥信，双点信息，带时标
+				else
+				my_rsbuf[7] = 3;
+				
         my_rsbuf[8] = length + 0x80; //信息体个数
-        my_rsbuf[9] = 20; //传输原因
+        my_rsbuf[9] = my_cot; //传输原因
 				my_rsbuf[10] = 0; //传输原因
 
         my_rsbuf[11] = DTU_ADDRESS; //公共域地址
@@ -671,7 +675,7 @@ void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_
 
 //68 53 53 68 53 01 00 09 98 14 00 01 00 01 40 00 00 00 00 00 00 00 00 00 00 4B 16
 */
-void my_gprs_generate_101analog_data(uint8_t temp, uint8_t *my_rsbuf)
+void my_gprs_generate_101analog_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t shibiao,uint8_t my_cot)
 {
     uint8_t length = 0;
 
@@ -682,14 +686,14 @@ void my_gprs_generate_101analog_data(uint8_t temp, uint8_t *my_rsbuf)
 
         my_rsbuf[0] = 0x68;
         my_rsbuf[3] = 0x68;
-        my_rsbuf[1] = length * 5 + 11; //12*5+11=61
-        my_rsbuf[2] = length * 5 + 11;
+        my_rsbuf[1] = length * 5 + 11+shibiao; //12*5+11=61
+        my_rsbuf[2] = length * 5 + 11+shibiao;
 
         //控制域码处理
         my_101_DIR = 0X80;
         my_101_PRM = 0X40;
         if(my_GPRS_all_count == 1)
-            my_101_FCB = (~my_101_FCB) && 0X20;
+            my_101_FCB = (~my_101_FCB) & 0X20;
         my_101_FCV = 0X10;
         my_101_FC = 0X03;
 
@@ -700,7 +704,7 @@ void my_gprs_generate_101analog_data(uint8_t temp, uint8_t *my_rsbuf)
 
         my_rsbuf[7] = 13; //测量量，短浮点数
         my_rsbuf[8] = length + 0x80; //信息体个数
-        my_rsbuf[9] = 20; //传输原因
+        my_rsbuf[9] = my_cot; //传输原因
 				my_rsbuf[10] = 00; //传输原因
 
         my_rsbuf[11] = DTU_ADDRESS; //公共域地址
@@ -710,8 +714,8 @@ void my_gprs_generate_101analog_data(uint8_t temp, uint8_t *my_rsbuf)
         my_rsbuf[14] = 0x40;
 
       
-        my_rsbuf[4+11 + length * 5 ] = 0XFF;
-        my_rsbuf[4+11  + length * 5 + 1 ] = 0x16;
+        my_rsbuf[4+11 + length * 5 +shibiao] = 0XFF;
+        my_rsbuf[4+11  + length * 5 +shibiao+ 1 ] = 0x16;
 
 
     }
@@ -750,7 +754,7 @@ void my_gprs_generate_101MCU_data(uint8_t temp, uint8_t *my_rsbuf)
         my_101_DIR = 0X80;
         my_101_PRM = 0X40;
         if(my_GPRS_all_count == 1)
-            my_101_FCB = (~my_101_FCB) && 0X20;
+            my_101_FCB = (~my_101_FCB) & 0X20;
         my_101_FCV = 0X10;
         my_101_FC = 0X03;
 
@@ -765,7 +769,7 @@ void my_gprs_generate_101MCU_data(uint8_t temp, uint8_t *my_rsbuf)
 				my_rsbuf[10] = 00; //传输原因
 
         my_rsbuf[12] = 0x01; //遥信信息体首地址
-        my_rsbuf[13] = 0x41;
+        my_rsbuf[13] = 0x40;
 
         
 

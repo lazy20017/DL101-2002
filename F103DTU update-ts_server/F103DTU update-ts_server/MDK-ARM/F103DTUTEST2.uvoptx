@@ -169,6 +169,10 @@
       <TargetDriverDllRegistry>
         <SetRegEntry>
           <Number>0</Number>
+          <Key>DLGUARM</Key>
+        </SetRegEntry>
+        <SetRegEntry>
+          <Number>0</Number>
           <Key>ARMRTXEVENTFLAGS</Key>
           <Name>-L70 -Z18 -C0 -M0 -T1</Name>
         </SetRegEntry>
@@ -203,37 +207,22 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>my_indicator_data[0],0x0A</ItemText>
+          <ItemText>rsbuf1</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>my_indicator_data,0x0A</ItemText>
+          <ItemText>rsbuf1pt_write,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>my_indicator_data[my_address-1].xinhao_db</ItemText>
+          <ItemText>USART1_my_frame</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>my_indicator_data[my_address-1].xinhao_db</ItemText>
-        </Ww>
-        <Ww>
-          <count>4</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>my_indicator_data[0].xinhao_db,0x0A</ItemText>
-        </Ww>
-        <Ww>
-          <count>5</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>my_indicator_data[1].xinhao_db,0x0A</ItemText>
-        </Ww>
-        <Ww>
-          <count>6</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>my_indicator_data[2].xinhao_db,0x0A</ItemText>
+          <ItemText>(temp8&amp;&amp;0X0F),0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>
@@ -241,6 +230,26 @@
           <count>0</count>
           <WinNumber>2</WinNumber>
           <ItemText>my_indicator_record_data[0]</ItemText>
+        </Ww>
+        <Ww>
+          <count>1</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>NET_Server_status</ItemText>
+        </Ww>
+        <Ww>
+          <count>2</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>GPRS_Status</ItemText>
+        </Ww>
+        <Ww>
+          <count>3</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>my_os_count1,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>4</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>my_CC1101_all_step</ItemText>
         </Ww>
       </WatchWindow2>
       <MemoryWindow1>

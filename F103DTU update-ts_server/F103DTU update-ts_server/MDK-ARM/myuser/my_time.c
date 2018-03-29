@@ -48,7 +48,11 @@ void HAL_TIM_PeriodElapsedCallback2(TIM_HandleTypeDef *htim)
 				my_act_cyc_dtu_delay=0;
 				printf("====GPRS CYC time START=%d\r\n", my_os_count1);
         my_gprs_TX_status = 1;
-        my_fun_give_Queue(&myQueue01Handle, 0XB100);
+				//C版程序，主动发送周期数据
+        //my_fun_give_Queue(&myQueue01Handle, 0XB100);
+				
+				//A版程序，主动发送周期程序
+				my_fun_give_Queue(&myQueue01Handle, 0XB100);
 			}
 			else
 			{
@@ -68,7 +72,8 @@ void HAL_TIM_PeriodElapsedCallback2(TIM_HandleTypeDef *htim)
 			  
 				printf("====GPRS Heart time =%d\r\n", my_os_count1);
         my_gprs_TX_status = 1;
-        my_fun_give_Queue(&myQueue01Handle, 0X1F00);
+			 //C版程序，主动发送心跳包
+        //my_fun_give_Queue(&myQueue01Handle, 0X1F00);
        
     }
 
