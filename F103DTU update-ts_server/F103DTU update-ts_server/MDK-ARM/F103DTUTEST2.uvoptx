@@ -170,6 +170,7 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>DLGUARM</Key>
+          <Name>/</Name>
         </SetRegEntry>
         <SetRegEntry>
           <Number>0</Number>
@@ -223,6 +224,11 @@
           <count>3</count>
           <WinNumber>1</WinNumber>
           <ItemText>(temp8&amp;&amp;0X0F),0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>4</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>my_tim6_count,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>

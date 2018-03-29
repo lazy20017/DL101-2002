@@ -737,7 +737,7 @@ void my_gprs_generate_101analog_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t shi
 /*
 功能;生成环境数据包,temp为1生成有数据的数据包，0生成0数据的数据包
 */
-void my_gprs_generate_101MCU_data(uint8_t temp, uint8_t *my_rsbuf)
+void my_gprs_generate_101MCU_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_cot)
 {
     uint8_t length = 0;
 
@@ -765,7 +765,7 @@ void my_gprs_generate_101MCU_data(uint8_t temp, uint8_t *my_rsbuf)
 
         my_rsbuf[7] = 13; //测量量，短浮点数
         my_rsbuf[8] = length + 0x80; //信息体个数
-        my_rsbuf[9] = 20; //传输原因
+        my_rsbuf[9] = my_cot; //传输原因
 				my_rsbuf[10] = 00; //传输原因
 
         my_rsbuf[12] = 0x01; //遥信信息体首地址

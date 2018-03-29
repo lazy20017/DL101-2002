@@ -802,15 +802,15 @@ void StartTask04(void const * argument)
 				//周期主动上传遥测信息
         my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0xB100, 0, my_fun_GPRS_TX_CYC2_B); //遥信，有时标
         my_fun_gprs_time_dialog_tx(my_step, 0X00B1, 0xB200, 0, my_fun_GPRS_TX_CYC3_B); //遥测(4011,指示器数据),无时标
-        my_fun_gprs_time_dialog_tx(my_step, 0X00B2, 0xB300, 0, my_fun_GPRS_TX_CYC4); //遥测(4001,DTU数据)
+        my_fun_gprs_time_dialog_tx(my_step, 0X00B2, 0xB300, 0, my_fun_GPRS_TX_CYC4_B); //遥测(4001,DTU数据)
 				
 				//复位进程
 				
 				 my_fun_gprs_time_dialog_tx(my_step, 0X00A1, 0xA100, 0, my_fun_GPRS_TX_RESET); //
 				//报警（遥信有时标，遥测无时标）
-				my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x9100, 0, my_fun_GPRS_TX_ALarm_data_yaoxin); //遥信，有时标
-        my_fun_gprs_time_dialog_tx(my_step, 0X0091, 0x9200, 0, my_fun_GPRS_TX_ALarm_data_yaoce); //遥测，无时标
-        
+				//my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x9100, 0, my_fun_GPRS_TX_ALarm_data_yaoxin); //遥信，有时标,分遥信，和遥测进行数据传输
+        //my_fun_gprs_time_dialog_tx(my_step, 0X0091, 0x9200, 0, my_fun_GPRS_TX_ALarm_data_yaoce); //遥测，无时标my_fun_GPRS_TX_ALarm_data_yaoxin_yaoce
+          my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x9100, 0, my_fun_GPRS_TX_ALarm_data_yaoxin_yaoce); //遥信和遥测合并在一起发生，遥信有时标，遥测没有时标
 				
 				
 				
@@ -924,7 +924,7 @@ void StartTask05(void const * argument)
 				
 				//=====心跳  服务器发起
 				
-				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xD700, 0X00D7, 0X0000, 0, my_fun_GPRS_RX_test1);
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00D7, 0xD700, 0, my_fun_GPRS_RX_test1);
 				
 				//==周期遥测
 				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xB100, 0x00B1, 0XB200, 0, my_fun_GPRS_RX_test1);
@@ -936,8 +936,9 @@ void StartTask05(void const * argument)
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xA100, 0X00A2, 0X0000, 1, my_fun_GPRS_RX_test1);
 				
 				//故障报警（遥信+时标，遥测+时标）
-				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9100, 0X0091, 0X9200, 0, my_fun_GPRS_RX_test1); //遥信有时标
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9200, 0X0092, 0X0000, 1, my_fun_GPRS_RX_test1); //遥信有时标
+				//my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9100, 0X0091, 0X9200, 0, my_fun_GPRS_RX_test1); //遥信有时标
+        //my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9200, 0X0092, 0X0000, 1, my_fun_GPRS_RX_test1); //遥信有时标
+					my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9100, 0X0091, 0X0000, 1, my_fun_GPRS_RX_test1); //遥信和遥测合并，一次完事
 				
 				
 				

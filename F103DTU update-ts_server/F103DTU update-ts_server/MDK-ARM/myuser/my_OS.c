@@ -1831,8 +1831,10 @@ void  my_fun_GPRS_TX_CYC3(void)  //遥测，总召,无时标
 void  my_fun_GPRS_TX_CYC4(void)  //  环境
 {
     union MY_float my_DTU_vol_data;
+		uint8_t my_cot=0;
+		my_cot=20;
 
-    my_gprs_generate_101MCU_data(1, my_usart1_tx_buf1);
+    my_gprs_generate_101MCU_data(1, my_usart1_tx_buf1,my_cot);
 
     my_DTU_vol_data.value = MY_Bat_value / 10.0;
     my_usart1_tx_buf1[15 + 0] = my_DTU_vol_data.byte[0];
@@ -1892,7 +1894,7 @@ void  my_fun_GPRS_TX_CYC5(void)  //  总召结束
     my_usart1_tx_buf1[17] = 0x16;
 
     my_at_senddata(my_usart1_tx_buf1); //
-		 my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
+    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
 
 }
 
@@ -3953,8 +3955,8 @@ void  my_fun_GPRS_TX_heart_toserver_data(void)
 
 void  my_fun_GPRS_TX_CYC2_B(void)  //发送遥信量,周期，有时标
 {
-    uint8_t ii = 0, kk = 0, my_shibiao_time = 7;
-    my_gprs_generate_101single_data(1, my_usart1_tx_buf1, my_shibiao_time, 0x01); //总共有56个信息体地址
+    uint8_t ii = 0, kk = 0, my_shibiao_time = 0;
+    my_gprs_generate_101single_data(1, my_usart1_tx_buf1, my_shibiao_time, 0x03); //总共有56个信息体地址
     for(ii = 1; ii <= MY_GPRS_Call_Single_data_number; ii++)
     {
         my_usart1_tx_buf1[14 + ii] = 0X00; //遥信双点信息 01为正常，0X02为故障
@@ -4115,13 +4117,10 @@ void  my_fun_GPRS_TX_CYC3_B(void)  //遥测，周期，有时标
 
 void  my_fun_GPRS_TX_ALarm_data_yaoxin(void)
 {
-    uint8_t ii = 0, jj = 0;;
+    uint8_t  jj = 0;;
     uint8_t x1 = 0, x2 = 0, x3 = 0, x_count = 0;
-    //uint8_t inf_add = 0;
-    //uint8_t alarm_data = 00;
 
-
-    if(my_GPRS_all_step == 0X9100 ) //遥信-无时标
+    if(my_GPRS_all_step == 0X9100 ) //遥信-带时标
     {
         if(my_indicator_tx_index == 0)  //
         {
@@ -4412,104 +4411,59 @@ void  my_fun_GPRS_TX_ALarm_data_yaoxin(void)
 
 
     }
-    
-
-    else if(my_GPRS_all_step == 0X9300)  // 遥测-线上交流值
-    {
-        wdz_GPRS_string_to_array(TX_GPRS_101_ALarm_single_AC_data, my_usart1_tx_buf1); //
-        if((int)my_indicator_tx_index >= 0 && my_indicator_tx_index < 10)
-        {
-            my_usart1_tx_buf1[12] = my_indicator_tx_index + 1;
-            my_usart1_tx_buf1[13] = 0X44;
-
-        }
-        for(ii = 0; ii < 3; ii++)
-        {
-            if(ii == my_indicator_tx_index)  //报警数据填充
-            {
-
-                my_usart1_tx_buf1[14 + ii * 6] = my_indicator_alarm_data[ii].AC_data_buf[0];
-                my_usart1_tx_buf1[15 + ii * 6] = my_indicator_alarm_data[ii].AC_data_buf[1];
-                my_usart1_tx_buf1[16 + ii * 6] = my_indicator_alarm_data[ii].AC_data_buf[2];
-                my_usart1_tx_buf1[17 + ii * 6] = my_indicator_alarm_data[ii].AC_data_buf[3];
-                my_usart1_tx_buf1[18 + ii * 6] = my_indicator_alarm_data[ii].AC_data_buf[4];
-                my_usart1_tx_buf1[19 + ii * 6] = my_indicator_alarm_data[ii].AC_data_buf[5];
-            }
-            else  //其它相利用周期数据填充
-            {
-                my_usart1_tx_buf1[14 + ii * 6] = my_indicator_data[ii].AC_data_buf[0];
-                my_usart1_tx_buf1[15 + ii * 6] = my_indicator_data[ii].AC_data_buf[1];
-                my_usart1_tx_buf1[16 + ii * 6] = my_indicator_data[ii].AC_data_buf[2];
-                my_usart1_tx_buf1[17 + ii * 6] = my_indicator_data[ii].AC_data_buf[3];
-                my_usart1_tx_buf1[18 + ii * 6] = my_indicator_data[ii].AC_data_buf[4];
-                my_usart1_tx_buf1[19 + ii * 6] = my_indicator_data[ii].AC_data_buf[5];
-
-
-            }
-
-
-        }
-        //修改帧 DTU地址，信息体的数据
-        my_usart1_tx_buf1[5] = my_usart1_tx_buf1[10] = DTU_ADDRESS;
-        my_usart1_tx_buf1[6] = my_usart1_tx_buf1[11] = DTU_ADDRESS >> 8;
-        my_fun_101check_generate(my_usart1_tx_buf1, 0);
-
-        my_at_senddata(my_usart1_tx_buf1);
-        printf("my_GPRS send turnled_ack data-[%XH]:", my_GPRS_all_step);
-        my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
-
-        return;
 
 
 
-    }
-	}
 
-   
+
+
+}
+
+
 
 void  my_fun_GPRS_TX_ALarm_data_yaoce(void)
 {
 
-		uint8_t jj = 0; //时标长度
-	  uint8_t length=0;
+    uint8_t jj = 0; //时标长度
+    uint8_t length = 0;
     union MY_float my_AC_data ;
     //my_gprs_generate_101analog_data(1, my_usart1_tx_buf1, shibiao, 0x01);
-	
-	//=============================
-				length = 3;
 
-        my_usart1_tx_buf1[0] = 0x68;
-        my_usart1_tx_buf1[3] = 0x68;
-        my_usart1_tx_buf1[1] = length * 5 + 11; //12*5+11=61
-        my_usart1_tx_buf1[2] = length * 5 + 11;
+    //=============================
+    length = 3;
 
-        //控制域码处理
-        my_101_DIR = 0X80;
-        my_101_PRM = 0X40;
-        if(my_GPRS_all_count == 1)
-            my_101_FCB = (~my_101_FCB) & 0X20;
-        my_101_FCV = 0X10;
-        my_101_FC = 0X03;
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = length * 5 + 11; //12*5+11=61
+    my_usart1_tx_buf1[2] = length * 5 + 11;
 
-        my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+    //控制域码处理
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) & 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
 
-        my_usart1_tx_buf1[5] = DTU_ADDRESS;
-        my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
 
-        my_usart1_tx_buf1[7] = 13; //测量量，短浮点数
-        my_usart1_tx_buf1[8] = length + 0x80; //信息体个数
-        my_usart1_tx_buf1[9] = 3; //传输原因
-				my_usart1_tx_buf1[10] = 00; //传输原因
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
 
-        my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
-        my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
+    my_usart1_tx_buf1[7] = 13; //测量量，短浮点数
+    my_usart1_tx_buf1[8] = length + 0x80; //信息体个数
+    my_usart1_tx_buf1[9] = 3; //传输原因
+    my_usart1_tx_buf1[10] = 00; //传输原因
 
-        my_usart1_tx_buf1[13] = 0x11; //遥信信息体首地址
-        my_usart1_tx_buf1[14] = 0x40;
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
 
-      
-        my_usart1_tx_buf1[4+11 + length * 5 ] = 0XFF;
-        my_usart1_tx_buf1[4+11  + length * 5 + 1 ] = 0x16;
+    my_usart1_tx_buf1[13] = 0x11; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x40;
+
+
+    my_usart1_tx_buf1[4 + 11 + length * 5 ] = 0XFF;
+    my_usart1_tx_buf1[4 + 11  + length * 5 + 1 ] = 0x16;
 
     //==================================
     for(jj = 0; jj < length * 5; jj++)
@@ -4529,7 +4483,7 @@ void  my_fun_GPRS_TX_ALarm_data_yaoce(void)
         my_usart1_tx_buf1[15 + jj * 5 + 3] = my_AC_data.byte[3];
         my_usart1_tx_buf1[15 + jj * 5 + 4] = 0;
 
-        
+
 
     }
 
@@ -4541,6 +4495,516 @@ void  my_fun_GPRS_TX_ALarm_data_yaoce(void)
     printf("my_GPRS send CYC data-[%XH]:", my_GPRS_all_step);
     my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
 
-	
-	
+
+
+}
+
+
+//故障报警，遥信和遥测合并在一起。
+void  my_fun_GPRS_TX_ALarm_data_yaoxin_yaoce(void)
+{
+
+    uint8_t jj = 0;;
+    uint8_t x1 = 0, x2 = 0, x3 = 0, x_count = 0;
+    uint8_t my_add_star_yaoxin = 0;
+    uint8_t length = 0;
+    union MY_float my_AC_data ;
+
+    //遥信-带时标
+
+    if(my_indicator_tx_index == 0)  //
+    {
+        return;
+    }
+    //===========
+
+    jj = my_indicator_tx_index;
+    if(jj & 0X01 == 0x01) x1 = 1;
+    if(jj & 0X02 == 0x02) x2 = 1;
+    if(jj & 0x04 == 0x04) x3 = 1;
+
+    my_add_star_yaoxin = 15;
+    //====A相===
+    if(x1 == 1)
+    {
+        if(my_indicator_alarm_data[00].TX_status_duanlu >= 0X01)
+        {
+
+            //短路状态
+            if(my_indicator_alarm_data[00].duanlu_data == 0X01)
+            {   x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x13; //永久性短路
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[00].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[00].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[00].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[00].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[00].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[00].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[00].RTC_time_buf[6];
+
+            }
+            else if(my_indicator_alarm_data[00].duanlu_data == 0X41 || my_indicator_alarm_data[00].duanlu_data == 0X81)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x12; //瞬时性性短路
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[00].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[00].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[00].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[00].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[00].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[00].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[00].RTC_time_buf[6];
+
+            }
+            else if(my_indicator_alarm_data[00].duanlu_data == 0)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x13; //永久性短路恢复了
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[00].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[00].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[00].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[00].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[00].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[00].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[00].RTC_time_buf[6];
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x18; //停电
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[00].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[00].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[00].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[00].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[00].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[00].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[00].RTC_time_buf[6];
+
+
+
+            }
+            else if(my_indicator_alarm_data[00].duanlu_data == 0XFE)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x18; //停电
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[00].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[00].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[00].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[00].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[00].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[00].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[00].RTC_time_buf[6];
+
+            }
+
+        }
+        if(my_indicator_alarm_data[00].TX_status_jiedi >= 0X01)
+        {
+            if(my_indicator_alarm_data[00].TX_status_jiedi == 0X01)
+            {   x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x14; //接地
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[00].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[00].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[00].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[00].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[00].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[00].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[00].RTC_time_buf[6];
+
+            }
+            else if(my_indicator_alarm_data[00].TX_status_jiedi == 0X00)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x14; //接地
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[00].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[00].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[00].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[00].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[00].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[00].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[00].RTC_time_buf[6];
+
+            }
+        }
+
+    }
+
+    //===B相
+
+    if(x2 == 1)
+    {
+        if(my_indicator_alarm_data[1].TX_status_duanlu >= 0X01)
+        {
+
+            //短路状态
+            if(my_indicator_alarm_data[1].duanlu_data == 0X01)
+            {   x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x23; //永久性短路
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[1].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[1].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[1].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[1].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[1].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[1].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[1].RTC_time_buf[6];
+            }
+            else if(my_indicator_alarm_data[1].duanlu_data == 0X41 || my_indicator_alarm_data[1].duanlu_data == 0X81)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x22; //瞬时性性短路
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[1].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[1].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[1].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[1].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[1].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[1].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[1].RTC_time_buf[6];
+
+            }
+            else if(my_indicator_alarm_data[01].duanlu_data == 0)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x23; //永久性短路恢复了
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x28; //停电
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[1].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[1].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[1].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[1].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[1].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[1].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[1].RTC_time_buf[6];
+
+
+
+            }
+            else if(my_indicator_alarm_data[01].duanlu_data == 0XFE)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x28; //停电
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[1].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[1].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[1].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[1].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[1].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[1].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[1].RTC_time_buf[6];
+
+            }
+
+        }
+        if(my_indicator_alarm_data[1].TX_status_jiedi >= 0X01)
+        {
+            if(my_indicator_alarm_data[1].jiedi_data == 0X01)
+            {   x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x24; //接地
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[1].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[1].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[1].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[1].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[1].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[1].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[1].RTC_time_buf[6];
+            }
+            else if(my_indicator_alarm_data[1].jiedi_data == 0X00)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x24; //接地
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[1].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[1].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[1].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[1].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[1].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[1].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[1].RTC_time_buf[6];
+
+            }
+        }
+
+    }
+
+
+
+    //---C相
+    if(x3 == 1)
+    {
+        if(my_indicator_alarm_data[2].TX_status_duanlu >= 0X01)
+        {
+
+            //短路状态
+            if(my_indicator_alarm_data[2].duanlu_data == 0X01)
+            {   x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x33; //永久性短路
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[2].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[2].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[2].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[2].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[2].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[2].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[2].RTC_time_buf[6];
+            }
+            else if(my_indicator_alarm_data[2].duanlu_data == 0X41 || my_indicator_alarm_data[02].duanlu_data == 0X81)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x32; //瞬时性性短路
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[2].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[2].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[2].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[2].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[2].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[2].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[2].RTC_time_buf[6];
+
+            }
+            else if(my_indicator_alarm_data[2].duanlu_data == 0)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x33; //永久性短路恢复了
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[2].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[2].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[2].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[2].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[2].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[2].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[2].RTC_time_buf[6];
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x38; //停电
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[2].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[2].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[2].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[2].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[2].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[2].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[2].RTC_time_buf[6];
+
+
+
+            }
+            else if(my_indicator_alarm_data[02].duanlu_data == 0XFE)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x38; //停电
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[2].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[2].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[2].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[2].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[2].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[2].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[2].RTC_time_buf[6];
+
+            }
+
+        }
+        if(my_indicator_alarm_data[2].TX_status_jiedi >= 0X01)
+        {
+            if(my_indicator_alarm_data[2].jiedi_data == 0X01)
+            {   x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x34; //接地
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_ERROR;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[2].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[2].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[2].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[2].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[2].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[2].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[2].RTC_time_buf[6];
+            }
+            else if(my_indicator_alarm_data[2].jiedi_data == 0X00)
+            {
+
+                x_count++;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10] = 0x34; //接地
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 1] = 00;
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 2] = MY_yaoxin_status_OK;
+
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 3] = my_indicator_alarm_data[2].RTC_time_buf[0];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 4] = my_indicator_alarm_data[2].RTC_time_buf[1];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 5] = my_indicator_alarm_data[2].RTC_time_buf[2];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 6] = my_indicator_alarm_data[2].RTC_time_buf[3];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 7] = my_indicator_alarm_data[2].RTC_time_buf[4];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 8] = my_indicator_alarm_data[2].RTC_time_buf[5];
+                my_usart1_tx_buf1[my_add_star_yaoxin + x_count * 10 + 9] = my_indicator_alarm_data[2].RTC_time_buf[6];
+
+            }
+        }
+
+    }
+
+
+    //遥测数据，没有时标
+		length=3;
+    for(jj = 0; jj < length * 6; jj++)
+    {
+        my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10 + 2 + jj] = 0;
+    }
+
+    for(jj = 0; jj < 3; jj++)
+    {
+        my_AC_data.value = (my_indicator_data[jj].AC_data_buf[0] + (my_indicator_data[jj].AC_data_buf[1] << 8)) / 10.0;
+        //my_vol_data.value = (my_indicator_data[jj].DC_data_buf[12] + (my_indicator_data[jj].DC_data_buf[13] << 8)) / 10.0;
+        //my_temperature_data.value = (my_indicator_data[jj].DC_data_buf[0] + (my_indicator_data[jj].DC_data_buf[1] << 8)) / 10.0;
+					
+				my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10 +2+jj*6+0 ] = 0x11+jj;
+				my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10 +2+jj*6+1 ] = 0X40;
+        my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10 +2+jj*6+2 ] = my_AC_data.byte[0];
+        my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10 +2+jj*6+3 ] = my_AC_data.byte[1];
+        my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10 +2+jj*6+4 ] = my_AC_data.byte[2];
+        my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10 +2+jj*6+5 ] = my_AC_data.byte[3];
+
+    }
+
+
+
+
+    //======
+
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = 9 +2+ x_count * 10 +2+length * 6; //长度
+    my_usart1_tx_buf1[2] = 9 +2+ x_count * 10 +2+length * 6;
+
+
+    //控制域码处理
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) & 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = 0X03;
+
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+
+
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+
+    my_101_TI = 42;
+    my_101_VSQ_1_7 = x_count+3;
+    my_101_VSQ_8_SQ = 0x00;
+    my_101_VSQ_1_7 = (my_101_VSQ_1_7 | my_101_VSQ_8_SQ);
+    my_101_COT_low = 0x03;
+    my_101_COT_high = 0;
+
+    my_usart1_tx_buf1[7] = my_101_TI;
+    my_usart1_tx_buf1[8] = my_101_VSQ_1_7; //信息体个数
+    my_usart1_tx_buf1[9] = my_101_COT_low; //传输原因
+    my_usart1_tx_buf1[10] = my_101_COT_high;
+
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);
+		
+		my_usart1_tx_buf1[13]=x_count;
+		my_usart1_tx_buf1[14]=3;
+		
+		my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10]=length;
+		my_usart1_tx_buf1[my_add_star_yaoxin + (x_count+1) * 10+1]=13;
+
+   
+
+    my_fun_101check_generate(my_usart1_tx_buf1, 0);
+
+    my_at_senddata(my_usart1_tx_buf1);
+    printf("my_GPRS send turnled_ack data-[%XH]:", my_GPRS_all_step);
+    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
+
+
+
+
+
+
+}
+
+
+void  my_fun_GPRS_TX_CYC4_B(void)  //  环境
+{
+    union MY_float my_DTU_vol_data;
+		uint8_t my_cot=0;
+		my_cot=1;
+
+    my_gprs_generate_101MCU_data(1, my_usart1_tx_buf1,my_cot);
+
+    my_DTU_vol_data.value = MY_Bat_value / 10.0;
+    my_usart1_tx_buf1[15 + 0] = my_DTU_vol_data.byte[0];
+    my_usart1_tx_buf1[15 + 1] = my_DTU_vol_data.byte[1];
+    my_usart1_tx_buf1[15 + 2] = my_DTU_vol_data.byte[2];
+    my_usart1_tx_buf1[15 + 3] = my_DTU_vol_data.byte[3];
+    my_usart1_tx_buf1[15 + 4] = 0;
+
+
+    wdz_GPRS_101check_generate(my_usart1_tx_buf1);
+
+    my_at_senddata(my_usart1_tx_buf1);
+
+    printf("my_GPRS send CYC data-[%XH]:", my_GPRS_all_step);
+    my_fun_display_buf_16(my_usart1_tx_buf1, 10, 1);
+
 }

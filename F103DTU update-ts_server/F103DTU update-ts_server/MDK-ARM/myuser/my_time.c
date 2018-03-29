@@ -36,7 +36,7 @@ void HAL_TIM_PeriodElapsedCallback2(TIM_HandleTypeDef *htim)
     }
 
     //GPRS 周期发送
-		MY_ACT_CYC_DTU=487;//487; //@@@@快速测试使用
+		MY_ACT_CYC_DTU=91;//487; //@@@@快速测试使用
     if(my_tim6_count % (MY_ACT_CYC_DTU+my_act_cyc_dtu_delay) == 0 &&my_tim6_count != 0 )			
     {  if( my_GPRS_all_step == 0 && my_gprs_TX_status == 0 && my_system_restart_status==0 )
 			{
