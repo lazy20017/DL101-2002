@@ -154,7 +154,10 @@ void  my_fun_GPRS_TX_CYC4_B(void);
 void  my_fun_GPRS_TX_ALarm_data_yaoxin(void);
 void  my_fun_GPRS_TX_ALarm_data_yaoce(void);
 void  my_fun_GPRS_TX_ALarm_data_yaoxin_yaoce(void);
-
+void  my_fun_GPRS_TX_catalog(void);
+void  my_fun_GPRS_TX_file_data_1(void);
+void  my_fun_GPRS_TX_file_data_2(void);
+void  my_fun_GPRS_TX_file_data_3(void);
 #define MY_yaoxin_status_OK  0X01    //如果采用双点信息，就是0X01正常，0x02故障。如果是单点信息，00为正常，01为故障
 #define MY_yaoxin_status_ERROR 0x02
 

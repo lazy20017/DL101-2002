@@ -626,7 +626,7 @@ void my_gprs_generate_101single_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_
         my_101_FCV = 0X10;
         my_101_FC = 0X03;
 
-        my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+        my_rsbuf[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
 
 
 
@@ -767,9 +767,12 @@ void my_gprs_generate_101MCU_data(uint8_t temp, uint8_t *my_rsbuf,uint8_t my_cot
         my_rsbuf[8] = length + 0x80; //信息体个数
         my_rsbuf[9] = my_cot; //传输原因
 				my_rsbuf[10] = 00; //传输原因
-
-        my_rsbuf[12] = 0x01; //遥信信息体首地址
-        my_rsbuf[13] = 0x40;
+				
+				my_rsbuf[11]= DTU_ADDRESS;
+				my_rsbuf[12]= (DTU_ADDRESS >> 8);
+				
+        my_rsbuf[13] = 0x01; //遥信信息体首地址
+        my_rsbuf[14] = 0x40;
 
         
 

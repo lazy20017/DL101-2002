@@ -110,13 +110,17 @@ extern struct indicator_record_class my_indicator_record_data[];
 extern uint8_t my_indicator_tx_index;
 extern uint16_t my_gprs_count_time;
 
+extern struct indicator_class my_indicator_data[];
+
+
+
 uint16_t my_os_count1 = 0;
 uint8_t my_cc_count = 0;
 uint8_t my_gprs_TX_status = 0; //1表示gprs正在进行发送环节，0表示结束
-uint16_t my_cc1101_tx_wait_time=2000;
-uint8_t my_cc1101_record_Efild_status=1;  //录波数据，发送的第2组数据为电场数据
-uint8_t my_CC1101_ERROR_count=0;  //CC1101故障记录数
-uint16_t my_CC1101_ERROR_OLD=0;
+uint16_t my_cc1101_tx_wait_time = 2000;
+uint8_t my_cc1101_record_Efild_status = 1; //录波数据，发送的第2组数据为电场数据
+uint8_t my_CC1101_ERROR_count = 0; //CC1101故障记录数
+uint16_t my_CC1101_ERROR_OLD = 0;
 
 /* USER CODE END Variables */
 
@@ -296,7 +300,7 @@ void StartTask03(void const * argument)
     extern uint8_t USART1_FRAME_status;
     extern uint8_t USART3_FRAME_status;
     uint8_t my_status = 0;
-    uint8_t temp8 = 0, temp8_ti = 0, temp8_cot = 0;
+    uint8_t temp8 = 0, temp8_ti = 0, temp8_cot = 0,temp8_QOI=0;
     uint16_t temp16_inf_add = 0;
     uint16_t my_step = 0;
     /* Infinite loop */
@@ -333,7 +337,7 @@ void StartTask03(void const * argument)
             my_101frame_analyse(1, 0, my_GPRS_CRC_check); //第2个参数，0为单地址
             if(USART1_FRAME_status > 0) //分析出来数据
             {
-                my_fun_display_fram_16(1);  //测试使用，显示接收到的数据
+                my_fun_display_fram_16(1,8);  //测试使用，显示接收到的数据
                 USART1_FRAME_status = 0;
 
                 if(USART1_my_frame[0] == 0x10)
@@ -345,10 +349,13 @@ void StartTask03(void const * argument)
                 {
                     my_status = 0x68;
                     temp8 = USART1_my_frame[4]; //控制域功能码
-                    temp8_ti = USART1_my_frame[7]; //帧类型
-                    temp8_cot = USART1_my_frame[9]; //传输原因
-                    temp16_inf_add = USART1_my_frame[13]; //信息体高字节
-                    temp16_inf_add = (temp16_inf_add << 8) + USART1_my_frame[12]; //信息体低字节
+                    temp8_ti = USART1_my_frame[7]; //帧类型 ,[8]长度
+                    temp8_cot = USART1_my_frame[9]; //传输原因,为2个字节，9和10,后面的11和12位域地址
+                    //temp16_inf_add = USART1_my_frame[13]; //信息体高字节
+                    //temp16_inf_add = (temp16_inf_add << 8) + USART1_my_frame[12]; //信息体低字节
+									temp16_inf_add = USART1_my_frame[14]; //信息体高字节
+                  temp16_inf_add = (temp16_inf_add << 8) + USART1_my_frame[13]; //信息体低字节
+									temp8_QOI=USART1_my_frame[15];
 
                 }
                 else
@@ -375,156 +382,224 @@ void StartTask03(void const * argument)
                 my_step = 0X1000;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            //=======自定义标准101协议
+						
+						
+            //=======自定义标准101协议 20180324
+						//A版程序
+						//Server主动发起链路建立对话，TCP握手
+						else if( (temp8 & 0X0F) == 0x09 && my_status==0X10)
+            {
+                my_step = 0X0044;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+							else if( (temp8 & 0X0F) == 0x00 && my_status==0X10  &&  my_GPRS_all_step == 0X4400)
+            {
+                my_step = 0X0045;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+							else if( (temp8 &0X0F) == 0x0B && my_status==0X10  &&  my_GPRS_all_step == 0X4500)
+            {
+                my_step = 0X0046;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+							else if( (temp8 & 0X0F) == 0x00 && my_status==0X10 &&  my_GPRS_all_step == 0X4600)
+            {
+                my_step = 0X0047;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+							else if( (temp8 & 0X0F) == 0x00 && my_status==0X10 &&  my_GPRS_all_step == 0X4700)
+            {
+                my_step = 0X0048;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+						
+						
+						
 
-            //TCP握手 E1
-            else if( temp8 == 0x8B)
+            //=======TCP握手 E1  DTU主动发起
+            else if( ((temp8 & 0X0F) == 0x0B ||temp8 == 0x0B) && my_status==0X10 &&  my_GPRS_all_step == 0xE100)
             {
                 my_step = 0X00E1;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0xC9)
+            else if( ((temp8 & 0X0F) == 0x800 ||temp8 == 0x00) &&  my_status==0X10 &&  my_GPRS_all_step == 0XE200)
             {
                 my_step = 0X00E2;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0xC0 )
+            else if( ((temp8 & 0X0F) == 0x00) && my_status==0X10 &&  my_GPRS_all_step == 0XE300)
             {
                 my_step = 0X00E3;
+							
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0xF3 && temp8_ti == 0X46 && temp8_cot == 0x04 )
-            {
-                my_step = 0X00E4;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            //计数值同步 E5
-            else if( (temp8 == 0x73 || temp8 == 0x53) && temp8_ti == 0XDC && temp8_cot == 0x65 )
-            {
-                my_step = 0X00E5;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-
-            //心跳包 1F
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0X1F00 )
-            {
-                my_step = 0X001F;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            //时钟同步 D1
-            else if((temp8 == 0x73 || temp8 == 0x53) && temp8_ti == 0X67 && temp8_cot == 0x06)
-            {
-                my_step = 0X00D1;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XD100 )
-            {
-                my_step = 0X00D2;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            //
-
-
-            //周期信号 B1
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XB100 )
-            {
-                my_step = 0X00B1;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XB200 )
-            {
-                my_step = 0X00B2;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XB300 )
-            {
-                my_step = 0X00B3;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XB400 )
-            {
-                my_step = 0X00B4;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-
-
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XB500 )
-            {
-                my_step = 0X00B5;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XB600 )
-            {
-                my_step = 0X00B6;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XB700 )
-            {
-                my_step = 0X00B7;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-
-            //总召周期数据C1
-            else if((temp8 == 0x73 || temp8 == 0x53) && temp8_ti == 0X64 && temp8_cot == 0x06)
+           
+						//========================
+						
+						 //总召周期数据C1
+            else if((temp8 & 0x0F)==0X03 && temp8_ti == 0X64 && temp8_cot == 0x06 && temp8_QOI==20) //总召
             {
                 my_step = 0X00C1;
                 xQueueSend(myQueue02Handle, &my_step, 100);
 
             }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XC100 )
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XC100 ) //总召确认
             {
                 my_step = 0X00C2;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XC200 )
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XC200 )  //总召遥信 收到确认
             {
                 my_step = 0X00C3;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XC300 )
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XC300 ) //总召遥测4011 收到确认，指示器
             {
                 my_step = 0X00C4;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XC400 )
+						else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XC400 ) //总召遥测4001 收到确认，DTU
             {
                 my_step = 0X00C5;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XC500 )
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XC500 ) //确认总召结束
             {
                 my_step = 0X00C6;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XC600 )
+            
+					//时钟同步 D1
+            else if((temp8 & 0x0F)==0X03 && temp8_ti == 103 && temp8_cot == 0x06 )
             {
-                my_step = 0X00C7;
+                my_step = 0X00D1;
                 xQueueSend(myQueue02Handle, &my_step, 100);
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XC700 )
-            {
-                my_step = 0X00C8;
-                xQueueSend(myQueue02Handle, &my_step, 100);
-            }
 
-            //进程复位A1
-            else if((temp8 == 0x73 || temp8 == 0x53) && temp8_ti == 0X69 && temp8_cot == 0x06)
+            }
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XD100 )
+            {
+                my_step = 0X00D2;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            
+						//服务器发起读取时间
+						
+						else if((temp8 & 0x0F)==0X03 && temp8_ti == 103 && temp8_cot == 0x05 )
+            {
+                my_step = 0X00D3;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+
+            }
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XD300 )
+            {
+                my_step = 0X00D4;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+						
+					 //链路测试命令
+						
+						else if((temp8 & 0x0F)==0X03 && temp8_ti == 104 && temp8_cot == 0x06 )
+            {
+                my_step = 0X00D5;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+
+            }
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XD500 )
+            {
+                my_step = 0X00D6;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+						
+						
+						//服务器发起心跳命令
+						
+						else if((temp8 & 0x0F)==0X02 )
+            {
+                my_step = 0X00D7;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+
+            }
+						
+						//周期遥测
+						
+						else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XB100 )
+            {
+                my_step = 0X00B1;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            else if( (temp8 & 0x0F)==0X000 && my_GPRS_all_step == 0XB200 )
+            {
+                my_step = 0X00B2;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+            else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XB300 )
+            {
+                my_step = 0X00B3;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+						//进程复位A1
+           else if((temp8 & 0x0F)==0X03 && temp8_ti == 105 && temp8_cot == 6)
             {
                 my_step = 0X00A1;
                 xQueueSend(myQueue02Handle, &my_step, 100);
 
             }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0XA100 )
+						 else if( (temp8 & 0x0F)==0X00 && my_GPRS_all_step == 0XA100 )
             {
                 my_step = 0X00A2;
                 xQueueSend(myQueue02Handle, &my_step, 100);
             }
-
-
-
-
-
+						
+						//报警
+						 else if( (temp8 & 0x0F)==0X0 && my_GPRS_all_step == 0X9100 )
+          {
+                my_step = 0X0091;
+                xQueueSend(myQueue02Handle, &my_step, 100); //
+            }
+            else if( (temp8 & 0x0F)==0X0 && my_GPRS_all_step == 0X9200 )
+            {
+                my_step = 0X0092;
+                xQueueSend(myQueue02Handle, &my_step, 100); //
+            }
+						
+						
+						//召唤目录
+							 else if( (temp8 & 0x0F)==0X3 && temp8_ti == 122 && temp8_cot == 5 && temp8_QOI==2)
+          {
+                my_step = 0X0051;
+                xQueueSend(myQueue02Handle, &my_step, 100); //
+            }
+            else if( (temp8 & 0x0F)==0X0 && my_GPRS_all_step == 0X5100 )
+            {
+                my_step = 0X0052;
+                xQueueSend(myQueue02Handle, &my_step, 100); //
+            }
+				
+				
+				
+				//召唤文件
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						
+						//===========******************
+						//C版程序
+						//心跳包 1F
+            else if( temp8 == 0x80 && my_GPRS_all_step == 0X1F00 )
+            {
+                my_step = 0X001F;
+                xQueueSend(myQueue02Handle, &my_step, 100);
+            }
+      
             //参数设定81
             else if((temp8 == 0x73 || temp8 == 0x53) && temp8_ti == 0X30 && temp8_cot == 0x06 && (temp16_inf_add >= 0x5001 && temp16_inf_add <= 0X5012))
             {
@@ -600,32 +675,7 @@ void StartTask03(void const * argument)
             }
 
 
-            //故障报警91
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0X9100 )
-            {
-                my_step = 0X0091;
-                xQueueSend(myQueue02Handle, &my_step, 100); //
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0X9200 )
-            {
-                my_step = 0X0092;
-                xQueueSend(myQueue02Handle, &my_step, 100); //
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0X9300 )
-            {
-                my_step = 0X0093;
-                xQueueSend(myQueue02Handle, &my_step, 100); //
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0X9400 )
-            {
-                my_step = 0X0094;
-                xQueueSend(myQueue02Handle, &my_step, 100); //
-            }
-            else if( temp8 == 0x80 && my_GPRS_all_step == 0X9500 )
-            {
-                my_step = 0X0095;
-                xQueueSend(myQueue02Handle, &my_step, 100); //
-            }
+            
 
             //总召录波数据51
             else if((temp8 == 0x73 || temp8 == 0x53) && temp8_ti == 0X64 && temp8_cot == 0x6D)
@@ -708,44 +758,67 @@ void StartTask04(void const * argument)
             //printf("M35 not receive step = %d\r\n",my_step);
 
         }
-        //====DTU-GPRS 建立连接
-        my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0xE100, 0, my_fun_GPRS_TX_start1);
+				//A版程序
+				//====GRPS 建立链路（1）--Server发起===========
+				my_fun_gprs_time_dialog_tx(my_step, 0X0044, 0x4400, 0, my_fun_GPRS_TX_start1_server); 
+				my_fun_gprs_time_dialog_tx(my_step, 0X0045, 0x4500, 0, my_fun_GPRS_TX_start2_server); 
+				my_fun_gprs_time_dialog_tx(my_step, 0X0046, 0x4600, 0, my_fun_GPRS_TX_start3_server); 
+				my_fun_gprs_time_dialog_tx(my_step, 0X0047, 0x4700, 0, my_fun_GPRS_TX_start4_server); 
+				
+				
+				
+        //====DTU-GPRS 建立连接---DTU发起
+        my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0xE100, 0, my_fun_GPRS_TX_start1); //获得状态，前一状态，当前准备状态，结束状态，调用函数
         my_fun_gprs_time_dialog_tx(my_step, 0x00E1, 0xE200, 0, my_fun_GPRS_TX_start2);
         my_fun_gprs_time_dialog_tx(my_step, 0x00E2, 0xE300, 0, my_fun_GPRS_TX_start3);
-        my_fun_gprs_time_dialog_tx(my_step, 0x00E3, 0xE400, 0, my_fun_GPRS_TX_OK);
-        my_fun_gprs_time_dialog_tx(my_step, 0x00E4, 0xE500, 1, my_fun_GPRS_TX_OK);
+				
+				
+				  //=====总召
+        my_fun_gprs_time_dialog_tx(my_step, 0X00C1, 0xC100, 0, my_fun_GPRS_TX_Call_0); //OK帧
+        my_fun_gprs_time_dialog_tx(my_step, 0X00C2, 0xC200, 0, my_fun_GPRS_TX_CYC2); //遥信，无时标
+        my_fun_gprs_time_dialog_tx(my_step, 0X00C3, 0xC300, 0, my_fun_GPRS_TX_CYC3); //遥测(4011,指示器数据)
+        my_fun_gprs_time_dialog_tx(my_step, 0X00C4, 0xC400, 0, my_fun_GPRS_TX_CYC4); //遥测(4001,DTU数据)
+				my_fun_gprs_time_dialog_tx(my_step, 0X00C5, 0xC500, 0, my_fun_GPRS_TX_CYC5);//总召结束
+       
+				
+         //RTC时钟同步
+        my_fun_gprs_time_dialog_tx(my_step, 0X00D1, 0xD100, 0, my_fun_GPRS_TX_RTC_data);
+				
+				 //RTC时钟读取
+        my_fun_gprs_time_dialog_tx(my_step, 0X00D3, 0xD300, 0, my_fun_GPRS_TX_RTC_data_read);
 
-        //--DTU--计数值同步
-        my_fun_gprs_time_dialog_tx(my_step, 0x00E5, 0xE600, 1, my_fun_GPRS_TX_start4);
+					//链路测试命令
+				my_fun_gprs_time_dialog_tx(my_step, 0X00D5, 0xD500, 0, my_fun_GPRS_TX_test_data);
 
+					//心跳命令 服务器发起
+				my_fun_gprs_time_dialog_tx(my_step, 0X00D7, 0xD700, 1, my_fun_GPRS_TX_heart_toserver_data);	
+
+				//周期主动上传遥测信息
+        my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0xB100, 0, my_fun_GPRS_TX_CYC2_B); //遥信，有时标
+        my_fun_gprs_time_dialog_tx(my_step, 0X00B1, 0xB200, 0, my_fun_GPRS_TX_CYC3_B); //遥测(4011,指示器数据),无时标
+        my_fun_gprs_time_dialog_tx(my_step, 0X00B2, 0xB300, 0, my_fun_GPRS_TX_CYC4_B); //遥测(4001,DTU数据)
+				
+				//复位进程
+				 my_fun_gprs_time_dialog_tx(my_step, 0X00A1, 0xA100, 0, my_fun_GPRS_TX_RESET); //
+				
+				//报警（遥信有时标，遥测无时标）
+				//my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x9100, 0, my_fun_GPRS_TX_ALarm_data_yaoxin); //遥信，有时标,分遥信，和遥测进行数据传输
+        //my_fun_gprs_time_dialog_tx(my_step, 0X0091, 0x9200, 0, my_fun_GPRS_TX_ALarm_data_yaoce); //遥测，无时标my_fun_GPRS_TX_ALarm_data_yaoxin_yaoce
+          my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x9100, 0, my_fun_GPRS_TX_ALarm_data_yaoxin_yaoce); //遥信和遥测合并在一起发生，遥信有时标，遥测没有时标
+				
+				//召唤目录
+				
+				
+				
+				//召唤文件
+				
+				
+				
+				
+				
+				//C版程序
         //=====DTU==GPRS 主动发送心跳包---
         my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x1F00, 0, my_fun_GPRS_TX_test1);
-
-        //==DTU==RTC时钟同步
-        my_fun_gprs_time_dialog_tx(my_step, 0X00D1, 0xD100, 0, my_fun_GPRS_TX_RTC_data);
-
-        //====DTU==GPRS 主动发送 周期数据1--双字节
-        my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0xB100, 0, my_fun_GPRS_TX_CYC1); // 握手
-        my_fun_gprs_time_dialog_tx(my_step, 0X00B1, 0xB200, 0, my_fun_GPRS_TX_CYC2); //遥信
-        my_fun_gprs_time_dialog_tx(my_step, 0X00B2, 0xB300, 0, my_fun_GPRS_TX_CYC3); //遥测4个量
-        my_fun_gprs_time_dialog_tx(my_step, 0X00B3, 0xB400, 0, my_fun_GPRS_TX_CYC4); //环境
-
-        my_fun_gprs_time_dialog_tx(my_step, 0X00B4, 0xB500, 0, my_fun_GPRS_TX_CYC5); //遥测补充
-        my_fun_gprs_time_dialog_tx(my_step, 0X00B5, 0xB600, 0, my_fun_GPRS_TX_CYC6); //遥测12T
-        my_fun_gprs_time_dialog_tx(my_step, 0X00B6, 0xB700, 0, my_fun_GPRS_TX_CYC7); //计数值
-
-        //=====周期总召
-        my_fun_gprs_time_dialog_tx(my_step, 0X00C1, 0xC100, 0, my_fun_GPRS_TX_CYC2); //OK帧，遥信
-        my_fun_gprs_time_dialog_tx(my_step, 0X00C2, 0xC200, 0, my_fun_GPRS_TX_CYC3); //遥测
-        my_fun_gprs_time_dialog_tx(my_step, 0X00C3, 0xC300, 0, my_fun_GPRS_TX_CYC4); //环境
-
-        my_fun_gprs_time_dialog_tx(my_step, 0X00C4, 0xC400, 0, my_fun_GPRS_TX_CYC5); //遥测补充
-        my_fun_gprs_time_dialog_tx(my_step, 0X00C5, 0xC500, 0, my_fun_GPRS_TX_CYC6); //遥测12T
-        my_fun_gprs_time_dialog_tx(my_step, 0X00C6, 0xC600, 0, my_fun_GPRS_TX_CYC7); //计数值
-        my_fun_gprs_time_dialog_tx(my_step, 0X00C7, 0xC700, 0, my_fun_GPRS_TX_CYC8); //确认激活停止
-
-        //====DTU进程复位
-        my_fun_gprs_time_dialog_tx(my_step, 0X00A1, 0xA100, 0, my_fun_GPRS_TX_RESET); //
         //===DTU参数设置部分
         my_fun_gprs_time_dialog_tx(my_step, 0X0081, 0x8100, 1, my_fun_GPRS_TX_changeparameter); //
         //===DTU 控制指示器翻牌
@@ -765,12 +838,6 @@ void StartTask04(void const * argument)
         //--SERVER查询DTU计数值和RTC时间
         my_fun_gprs_time_dialog_tx(my_step, 0X0031, 0x3100, 1, my_fun_GPRS_TX_TIME_RTC); //
 
-        //====DTU==GPRS 主动发送  报警数据
-        my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x9100, 0, my_fun_GPRS_TX_ALarm_data); //遥信无时标
-        my_fun_gprs_time_dialog_tx(my_step, 0X0091, 0x9200, 0, my_fun_GPRS_TX_ALarm_data); //遥信有时标
-        my_fun_gprs_time_dialog_tx(my_step, 0X0092, 0x9300, 0, my_fun_GPRS_TX_ALarm_data); //遥测AC值
-        my_fun_gprs_time_dialog_tx(my_step, 0X0093, 0x9400, 0, my_fun_GPRS_TX_ALarm_data); //遥测12T
-        my_fun_gprs_time_dialog_tx(my_step, 0X0094, 0x9500, 0, my_fun_GPRS_TX_ALarm_data); //计数值及RTC
 
         //总召录波
         my_fun_gprs_time_dialog_tx(my_step, 0X0051, 0x5100, 0, my_fun_GPRS_TX_rec_data); //激活帧,文件第一段
@@ -796,6 +863,7 @@ void StartTask05(void const * argument)
     /* USER CODE BEGIN StartTask05 */
 
     //====GPRS  接收
+		 //=========GPRS 接收数据对话过程
     BaseType_t my_result;
     uint16_t my_step;
     /* Infinite loop */
@@ -818,44 +886,81 @@ void StartTask05(void const * argument)
             //printf("M35 not receive step = %d\r\n",my_step);
             my_step = 0X00;
         }
-        //===GPRS start--tcp握手
+				
+				//A版程序
+				//==GPRS==链路建立 server发起
+				 my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0x0044, 0X4400, 0, my_fun_GPRS_RX_test1);
+				 my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x4400, 0x0045, 0X4500, 0, my_fun_GPRS_RX_test1);
+				 my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x4500, 0x0046, 0X4600, 0, my_fun_GPRS_RX_test1);
+				 my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x4600, 0x0047, 0X4700, 0, my_fun_GPRS_RX_test1);
+				 my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x4700, 0x0048, 0X0000, 1, my_fun_GPRS_RX_test1);
+				
+				
+				
+        //===GPRS start--tcp握手--DTU主动发起
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xE100, 0x00E1, 0XE200, 0, my_fun_GPRS_RX_test1);
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xE200, 0x00E2, 0XE300, 0, my_fun_GPRS_RX_test1);
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xE300, 0x00E3, 0XE400, 0, my_fun_GPRS_RX_test1);
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xE400, 0x00E4, 0XE500, 0, my_fun_GPRS_RX_test1);
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xE300, 0x00E3, 0X0000, 1, my_fun_GPRS_RX_test1);
+				
+				//=======周期总召
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00C1, 0XC100, 0, my_fun_GPRS_RX_test1); //总召激活命令
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xC100, 0x00C2, 0XC200, 0, my_fun_GPRS_RX_test1); //总召确认激活OK
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC200, 0x00C3, 0XC300, 0, my_fun_GPRS_RX_test1); //遥信OK
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC300, 0x00C4, 0XC400, 0, my_fun_GPRS_RX_test1); //遥测4011开始的OK，指示器
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC400, 0x00C5, 0XC500, 0, my_fun_GPRS_RX_test1); //遥测4001开始的OK，DTU环境
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC500, 0x00C6, 0X0000, 1, my_fun_GPRS_RX_test1); //总召结束OK
+        
+				//====RTC时钟同步
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00D1, 0XD100, 0, my_fun_GPRS_RX_test1);
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xD100, 0X00D2, 0X0000, 1, my_fun_GPRS_RX_test1);
+				//====RTC时钟读取
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00D3, 0XD300, 0, my_fun_GPRS_RX_test1);
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xD300, 0X00D4, 0X0000, 1, my_fun_GPRS_RX_test1);
+				//====链路测试命令
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00D5, 0XD500, 0, my_fun_GPRS_RX_test1);
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xD500, 0X00D6, 0X0000, 1, my_fun_GPRS_RX_test1);
+				
+				//=====心跳  服务器发起
+				
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00D7, 0xD700, 0, my_fun_GPRS_RX_test1);
+				
+				//==周期遥测
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xB100, 0x00B1, 0XB200, 0, my_fun_GPRS_RX_test1);
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xB200, 0x00B2, 0XB300, 0, my_fun_GPRS_RX_test1);
+				my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xB300, 0x00B3, 0XB400, 1, my_fun_GPRS_RX_test1);
+				
+				 //DTU进程复位
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00A1, 0XA100, 0, my_fun_GPRS_RX_test1);
+        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xA100, 0X00A2, 0X0000, 1, my_fun_GPRS_RX_test1);
+				
+				//故障报警（遥信+时标，遥测+时标）
+				//my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9100, 0X0091, 0X9200, 0, my_fun_GPRS_RX_test1); //遥信有时标
+        //my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9200, 0X0092, 0X0000, 1, my_fun_GPRS_RX_test1); //遥信有时标
+					my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9100, 0X0091, 0X0000, 1, my_fun_GPRS_RX_test1); //遥信和遥测合并，一次完事
+				
+				
+				//召唤目录
+				
+				
+				
+				//召唤文件
+				
+				
+				
+				
+				
+				
+				//C版程序
         //===计数值同步
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0x00E5, 0XE600, 0, my_fun_GPRS_RX_test1);
         //========GPRS心跳
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x1F00, 0X001F, 0X0000, 1, my_fun_GPRS_RX_test1); //心跳包接收到OK帧
 
-        //====RTC时钟同步简化
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00D1, 0XD100, 0, my_fun_GPRS_RX_test1);
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xD100, 0X00D2, 0X0000, 1, my_fun_GPRS_RX_test1);
+        
 
-        //=======GPRS 周期
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xB100, 0x00B1, 0XB200, 0, my_fun_GPRS_RX_test1); //周期激活
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XB200, 0x00B2, 0XB300, 0, my_fun_GPRS_RX_test1); //周期遥信OK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XB300, 0x00B3, 0XB400, 0, my_fun_GPRS_RX_test1); //周期遥测OK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XB400, 0X00B4, 0XB500, 0, my_fun_GPRS_RX_test1); //周期环境OK帧
+      
 
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xB500, 0x00B5, 0XB600, 0, my_fun_GPRS_RX_test1); //遥测补充OK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XB600, 0x00B6, 0XB700, 0, my_fun_GPRS_RX_test1); //遥测12TOK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XB700, 0x00B7, 0X0000, 1, my_fun_GPRS_RX_test1); //计数同步OK
-        //=======周期总召
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00C1, 0XC100, 0, my_fun_GPRS_RX_test1); //激活指令
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xC100, 0x00C2, 0XC200, 0, my_fun_GPRS_RX_test1); //周期遥信OK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC200, 0x00C3, 0XC300, 0, my_fun_GPRS_RX_test1); //周期遥测OK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC300, 0x00C4, 0XC400, 0, my_fun_GPRS_RX_test1); //周期环境OK帧
-
-
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xC400, 0x00C5, 0XC500, 0, my_fun_GPRS_RX_test1); //遥测补充OK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC500, 0x00C6, 0XC600, 0, my_fun_GPRS_RX_test1); //遥测12TOK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC600, 0x00C7, 0XC700, 0, my_fun_GPRS_RX_test1); //计数同步OK
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0XC700, 0x00C8, 0X0000, 1, my_fun_GPRS_RX_test1); //激活终止OK
-
-        //DTU进程复位
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X00A1, 0XA100, 0, my_fun_GPRS_RX_test1);
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0xA100, 0X00A2, 0X0000, 1, my_fun_GPRS_RX_test1);
+       
 
         //DTU参数设置
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X0081, 0X8100, 0, my_fun_GPRS_RX_change_parameter);
@@ -877,11 +982,11 @@ void StartTask05(void const * argument)
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X0031, 0X3100, 0, my_fun_GPRS_RX_test1);
 
         //报警
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9100, 0X0091, 0X9200, 0, my_fun_GPRS_RX_test1); //遥信无时标
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9200, 0X0092, 0X9300, 0, my_fun_GPRS_RX_test1); //遥信有时标
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9300, 0X0093, 0X9400, 0, my_fun_GPRS_RX_test1); //遥测AC
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9400, 0X0094, 0X9500, 0, my_fun_GPRS_RX_test1); //遥测12T
-        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9500, 0X0095, 0X9600, 1, my_fun_GPRS_RX_test1); //计数及RTC
+//        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9100, 0X0091, 0X9200, 0, my_fun_GPRS_RX_test1); //遥信无时标
+//        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9200, 0X0092, 0X9300, 0, my_fun_GPRS_RX_test1); //遥信有时标
+//        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9300, 0X0093, 0X9400, 0, my_fun_GPRS_RX_test1); //遥测AC
+//        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9400, 0X0094, 0X9500, 0, my_fun_GPRS_RX_test1); //遥测12T
+//        my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x9500, 0X0095, 0X9600, 1, my_fun_GPRS_RX_test1); //计数及RTC
         //总召录波数据
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X0051, 0X5100, 0, my_fun_GPRS_RX_Rec_data); //激活指令
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x5100, 0X0052, 0X5200, 0, my_fun_GPRS_RX_Rec_data);
@@ -899,6 +1004,7 @@ void StartTask05(void const * argument)
 void StartTask06(void const * argument)
 {
     /* USER CODE BEGIN StartTask06 */
+	  //=====CC1101发送数据对话
     extern	uint8_t  my_cc1101_tx_buf[];
     uint16_t my_step = 0;
     BaseType_t my_result = 0;
@@ -910,7 +1016,7 @@ void StartTask06(void const * argument)
 
         //=====CC1101发送数据对话
         //my_result = xQueueReceive(myQueue03Handle, &my_step, my_cc1101_tx_wait_time); //xQueuePeek
-			 my_result = xQueueReceive(myQueue03Handle, &my_step, 10000); //xQueuePeek
+        my_result = xQueueReceive(myQueue03Handle, &my_step, 10000); //xQueuePeek
         if(my_result == pdPASS)
         {
             printf("CC1101 T_QU03 IS send=[%XH]\r\n", my_step);
@@ -931,8 +1037,8 @@ void StartTask06(void const * argument)
         my_fun_CC1101_time_dialog_tx3(my_step, 0xF800, 0xF900, 1, my_fun_CC1101_test1);
         //===========心跳回复OK
         my_fun_CC1101_time_dialog_tx3(my_step, 0xE000, 0x00E0, 1, my_fun_CC1101_TX_OK);
-				//===参数设置
-				my_fun_CC1101_time_dialog_tx3(my_step, 0xE100, 0x00E1, 0, my_fun_CC1101_TX_config_parmeter);
+        //===参数设置
+        my_fun_CC1101_time_dialog_tx3(my_step, 0xE100, 0x00E1, 0, my_fun_CC1101_TX_config_parmeter);
 
         //======CC1101 周期====
         my_fun_CC1101_time_dialog_tx3(my_step, 0x0100, 0x0001, 0, my_fun_CC1101_test1);
@@ -947,15 +1053,15 @@ void StartTask06(void const * argument)
         my_fun_CC1101_time_dialog_tx3(my_step, 0x5000, 0x0050, 0, my_fun_CC1101_test1);
         my_fun_CC1101_time_dialog_tx3(my_step, 0x5100, 0x0051, 0, my_fun_CC1101_test1);
         my_fun_CC1101_time_dialog_tx3(my_step, 0x5200, 0x0052, 0, my_fun_CC1101_test1);
-				if(my_cc1101_record_Efild_status==0)
-				{
-					my_fun_CC1101_time_dialog_tx3(my_step, 0x5300, 0x0053, 1, my_fun_CC1101_test1);
-				}
-				else
-				{
-        my_fun_CC1101_time_dialog_tx3(my_step, 0x5300, 0x0053, 0, my_fun_CC1101_test1);
-				my_fun_CC1101_time_dialog_tx3(my_step, 0x5400, 0x0054, 1, my_fun_CC1101_test1);
-				}
+        if(my_cc1101_record_Efild_status == 0)
+        {
+            my_fun_CC1101_time_dialog_tx3(my_step, 0x5300, 0x0053, 1, my_fun_CC1101_test1);
+        }
+        else
+        {
+            my_fun_CC1101_time_dialog_tx3(my_step, 0x5300, 0x0053, 0, my_fun_CC1101_test1);
+            my_fun_CC1101_time_dialog_tx3(my_step, 0x5400, 0x0054, 1, my_fun_CC1101_test1);
+        }
 
         //osDelay(1);
 
@@ -968,6 +1074,7 @@ void StartTask06(void const * argument)
 void StartTask07(void const * argument)
 {
     /* USER CODE BEGIN StartTask07 */
+	//=========CC1101接收数据对话过程
     BaseType_t my_result;
     uint16_t my_step;
     /* Infinite loop */
@@ -995,10 +1102,10 @@ void StartTask07(void const * argument)
 
         //=====ZSQ发送心跳
         my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0xE000, 0x00E0, 0, my_fun_dialog_CC1101_RX_0);
-				//=====参数设置
-				my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0xE100, 0x00E1, 0, my_fun_dialog_CC1101_RX_0);
-				my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0xE200, 0x0000, 1, my_fun_dialog_CC1101_RX_0);
-				
+        //=====参数设置
+        my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0xE100, 0x00E1, 0, my_fun_dialog_CC1101_RX_0);
+        my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0xE200, 0x0000, 1, my_fun_dialog_CC1101_RX_0);
+
         //====CC1101 周期=====
         my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0x0100, 0x0001, 0, my_fun_dialog_CC1101_RX_1);//遥信
         my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0x4000, 0x0040, 0, my_fun_dialog_CC1101_RX_1);//遥测DC
@@ -1013,7 +1120,7 @@ void StartTask07(void const * argument)
         my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0x5100, 0x0051, 0, my_fun_dialog_CC1101_RX_1);//遥测AC
         my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0x5200, 0x0052, 0, my_fun_dialog_CC1101_RX_1);//AC12T
         my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0x5300, 0x0053, 0, my_fun_dialog_CC1101_RX_1); //电流录波数据
-				my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0x5400, 0x0054, 0, my_fun_dialog_CC1101_RX_1);//电场
+        my_fun_CC1101_time_dialog_rx2(&myQueue03Handle, my_step, 0x0000, 0x5400, 0x0054, 0, my_fun_dialog_CC1101_RX_1);//电场
 
 
 
@@ -1070,7 +1177,7 @@ void StartTask08(void const * argument)
             if(my_CC1101_Frame_status > 0) //分析出来数据
             {
 #if Debug_uart_out_cc1101_rx_data_status==1
-                my_fun_display_fram_16(4);  //测试使用，显示接收到的数据
+                my_fun_display_fram_16(4,8);  //测试使用，显示接收到的数据
 #endif
 
                 my_CC1101_Frame_status = 0;
@@ -1101,7 +1208,7 @@ void StartTask08(void const * argument)
             }
 
             //===DTU  在线升级====
-            if( temp8 == 0xF0 && my_GPRS_all_step==0)
+            if( temp8 == 0xF0 && my_GPRS_all_step == 0)
             {
                 //my_CC1101_all_step=0XF000; //对话过程的开始状态
                 my_step = 0XF000;
@@ -1129,7 +1236,7 @@ void StartTask08(void const * argument)
                 xQueueSend(myQueue04Handle, &my_step, 100);
             }
             //=========CC1101心跳=====
-            else if( temp8 == 0x1F && my_GPRS_all_step==0) //指示器发送心跳帧
+            else if( temp8 == 0x1F && my_GPRS_all_step == 0) //指示器发送心跳帧
             {
 
                 my_step = 0XE000;
@@ -1138,7 +1245,7 @@ void StartTask08(void const * argument)
 
             //===========CC1101周期====
 
-            else if( temp8 == 0x01 && my_GPRS_all_step==0)
+            else if( temp8 == 0x01 && my_GPRS_all_step == 0)
             {
                 my_step = 0X0100;
                 xQueueSend(myQueue04Handle, &my_step, 100);
@@ -1164,14 +1271,14 @@ void StartTask08(void const * argument)
                 my_step = 0X4300;
                 xQueueSend(myQueue04Handle, &my_step, 100);
             }
-						else if( temp8 == 0x44)
+            else if( temp8 == 0x44)
             {
                 my_step = 0X4400;
                 xQueueSend(myQueue04Handle, &my_step, 100);
             }
 
             //=============CC1101报警========
-            else if( temp8 == 0x02 && my_GPRS_all_step==0)
+            else if( temp8 == 0x02 && my_GPRS_all_step == 0)
             {
                 my_step = 0X0200;
                 xQueueSend(myQueue04Handle, &my_step, 100);
@@ -1197,23 +1304,23 @@ void StartTask08(void const * argument)
                 my_step = 0X5300;
                 xQueueSend(myQueue04Handle, &my_step, 100);
             }
-						 else if( temp8 == 0x54)
+            else if( temp8 == 0x54)
             {
                 my_step = 0X5400;
                 xQueueSend(myQueue04Handle, &my_step, 100);
             }
-						//参数设置
-						 else if( temp8 == 0x2F)
+            //参数设置
+            else if( temp8 == 0x2F)
             {
                 my_step = 0XE100;
                 xQueueSend(myQueue04Handle, &my_step, 100);
             }
-						 else if( temp8 == 0x4F)
+            else if( temp8 == 0x4F)
             {
                 my_step = 0XE200;
                 xQueueSend(myQueue04Handle, &my_step, 100);
             }
-						
+
 
             //===========
             temp8 = 0;
@@ -1252,32 +1359,33 @@ void Callback01(void const * argument)
     }
 
     //#########################################
-    if(my_os_count1 % (13) == 0 && my_os_count1 != 0 && my_GPRS_all_step==0x00 && my_CC1101_all_step==0x00)
+    if(my_os_count1 % (13) == 0 && my_os_count1 != 0 && my_GPRS_all_step == 0x00 && my_CC1101_all_step == 0x00)
     {   /*
         发送报警，通过检测到ZSQ的报警状态进行转发。
         */
         if(
-					((my_indicator_alarm_data[0].TX_status_duanlu == 1 || my_indicator_alarm_data[0].TX_status_jiedi == 1) && my_indicator_record_data[0].my_wave_tx_status_E==1 &&  my_indicator_record_data[0].my_wave_tx_status_I==1)
-                ||( (my_indicator_alarm_data[1].TX_status_duanlu == 1 || my_indicator_alarm_data[1].TX_status_jiedi == 1) && my_indicator_record_data[1].my_wave_tx_status_E==1 &&  my_indicator_record_data[1].my_wave_tx_status_I==1)
-                || ((my_indicator_alarm_data[2].TX_status_duanlu == 1 || my_indicator_alarm_data[2].TX_status_jiedi == 1) && my_indicator_record_data[2].my_wave_tx_status_E==1 &&  my_indicator_record_data[2].my_wave_tx_status_I==1)
-				)
+            (my_indicator_alarm_data[0].TX_status_duanlu == 1 || my_indicator_alarm_data[0].TX_status_jiedi == 1||my_indicator_alarm_data[0].TX_status_Line_STOP==1)
+            || ( my_indicator_alarm_data[1].TX_status_duanlu == 1 || my_indicator_alarm_data[1].TX_status_jiedi == 1 ||my_indicator_alarm_data[0].TX_status_Line_STOP==1)
+            || (my_indicator_alarm_data[2].TX_status_duanlu == 1 || my_indicator_alarm_data[2].TX_status_jiedi == 1 ||my_indicator_alarm_data[0].TX_status_Line_STOP==1)
+        )
         {
-					  if((my_CC1101_all_step>=0X5000 && my_CC1101_all_step<=0X5400) ||
-							(my_CC1101_all_step>=0X0050 && my_CC1101_all_step<=0X0054)  ||
-						   my_CC1101_all_step==0X0002 || my_CC1101_all_step==0X0200
-						)
-							return ;
+            if((my_CC1101_all_step >= 0X5000 && my_CC1101_all_step <= 0X5400) ||
+                    (my_CC1101_all_step >= 0X0050 && my_CC1101_all_step <= 0X0054)  ||
+                    my_CC1101_all_step == 0X0002 || my_CC1101_all_step == 0X0200
+              )
+                return ;
             printf("\n@@=GPRS ALarm time start=== my_os_count1=%d\n", my_os_count1);
+						my_indicator_tx_index=0;
             if(my_indicator_alarm_data[0].TX_status_duanlu == 1 || my_indicator_alarm_data[0].TX_status_jiedi == 1)
-                my_indicator_tx_index = 0;
+                my_indicator_tx_index = 0X01;
             else if(my_indicator_alarm_data[1].TX_status_duanlu == 1 || my_indicator_alarm_data[1].TX_status_jiedi == 1)
-                my_indicator_tx_index = 1;
+                my_indicator_tx_index = my_indicator_tx_index|0x02;
             else if(my_indicator_alarm_data[2].TX_status_duanlu == 1 || my_indicator_alarm_data[2].TX_status_jiedi == 1)
-                my_indicator_tx_index = 2;
+                my_indicator_tx_index = my_indicator_tx_index|0x04;
             else
-                my_indicator_tx_index = 99;
-						
-						printf("GPRS ALarm report index=%d\n",my_indicator_tx_index);
+                my_indicator_tx_index = 0;
+
+            printf("GPRS ALarm report index=%d\n", my_indicator_tx_index);
 
             my_fun_give_Queue(&myQueue01Handle, 0X9100); // GPRS主动发送报警数据  @@@@测试使用
 
@@ -1286,30 +1394,33 @@ void Callback01(void const * argument)
 
     }
     //#############################
-    if(my_os_count1 % (361) == 0 && my_os_count1 != 0 && my_CC1101_all_step==0 && my_GPRS_all_step==0)
+    if(my_os_count1 % (3667) == 0 && my_os_count1 != 0 && my_CC1101_all_step == 0 && my_GPRS_all_step == 0)
     {
         printf("\n====GPRS Radio PW== my_os_count1=%d\r\n", my_os_count1);
-        my_fun_give_Queue(&myQueue01Handle, 0X4100); // GPRS主动发送信号强度
+			  //C版 程序,主动发送信号强度
+        //my_fun_give_Queue(&myQueue01Handle, 0X4100); // GPRS主动发送信号强度，ZSQ信号强度1小时左右一次
 
     }
     if(my_os_count1 % (60) == 0 && my_os_count1 != 0)
     {
         my_fun_M35_resume_init();//M35重新初始化，发送标志信息号
-			
-			if( my_CC1101_ERROR_OLD==my_gprs_count_time)
-			{
-				my_CC1101_ERROR_count++;			
-			}
-			else
-			{
-				my_CC1101_ERROR_OLD=my_gprs_count_time;
-				my_CC1101_ERROR_count=0;
-			}
-			if(my_CC1101_ERROR_count>=35)
-			{
-				HAL_NVIC_SystemReset();
-			}
-			
+
+        if( my_CC1101_ERROR_OLD == my_gprs_count_time)  //全局标志对比
+        {
+            my_CC1101_ERROR_count++;  //计数加一
+						printf("not change my_gprs_count_time=%d,ERROR_count=%d\n",my_gprs_count_time,my_CC1101_ERROR_count);
+        }
+        else
+        {
+            my_CC1101_ERROR_OLD = my_gprs_count_time;
+            my_CC1101_ERROR_count = 0;
+        }
+        if(my_CC1101_ERROR_count >= 35)  //35分钟左右
+        {
+						my_CC1101_ERROR_count=0;
+            HAL_NVIC_SystemReset();
+        }
+
     }
 
 
@@ -1317,22 +1428,28 @@ void Callback01(void const * argument)
     //#########################################################################
     //========GPRS================
 
-    // GPRS主动发送 TCP握手指令
-    if(NET_Server_status == 0  && GPRS_Status == 1 && my_os_count1 % 13 == 0 && my_CC1101_all_step==0)
+    // GPRS主动发送 TCP握手指令 DTU主动发起
+    if(NET_Server_status == 0  && GPRS_Status == 1 && my_os_count1 % 13 == 0 && my_CC1101_all_step == 0)
     {
-        my_gprs_TX_status = 1;
-        my_fun_give_Queue(&myQueue01Handle, 0XE100);
+			  if(NET_Server_status==1)
+					return;
+        
+				my_gprs_TX_status = 1;                       //A 版，DTU主动发起链路建立命令，
+        //my_fun_give_Queue(&myQueue01Handle, 0XE100); //计数13秒后开始进行 TCP链路建立20180324，定义一个全局变量进行链路状态标识
         printf("====GPRS TCP server Start=%d\r\n", my_os_count1);
         //NET_Server_status = 1;
 
     }
 
     //GPRS主动发送数据，周期数据，发送到01号队列，对应04号任务,系统重新启动后，发送一次数据
-    if(my_system_restart_status == 1 && my_GPRS_all_step == 0 && my_gprs_TX_status == 0 && my_CC1101_all_step==0)
-    {
+    if(my_system_restart_status == 1 && my_GPRS_all_step == 0 && my_gprs_TX_status == 0 && my_CC1101_all_step == 0 && my_os_count1>15)
+    { 
+			printf("\n\n====Restart GPRS CYC time==my_os_count1=%d\r\n", my_os_count1);
+			  my_system_restart_status=0;
+			  my_init_m35();
         my_gprs_TX_status = 1;
-        my_fun_give_Queue(&myQueue01Handle, 0XB100);
-        printf("\n\n====Restart GPRS CYC time==my_os_count1=%d\r\n", my_os_count1);
+        //my_fun_give_Queue(&myQueue01Handle, 0XB100);@@@@@20180328  C版 重启初始化
+       
     }
 
 //    //M35重新初始化
@@ -1373,7 +1490,7 @@ void Callback01(void const * argument)
     }
     //=======
     //=====CC1101发送心跳包
-    if(my_os_count1 % (5) == 0 && my_os_count1 != 0 && my_GPRS_all_step==0)
+    if(my_os_count1 % (5) == 0 && my_os_count1 != 0 && my_GPRS_all_step == 0)
     {
 
 #if		Use_CC1101_send_heat_data_status==1
@@ -1387,7 +1504,7 @@ void Callback01(void const * argument)
     //====从CPU STM32F0
     //======主CPU给从CPU发送指令,获得DTU的电压和温湿度
     //总召
-    if(my_os_count1 % (45) == 0 && my_CC1101_all_step==0 && my_GPRS_all_step==0)
+    if(my_os_count1 % (45) == 0 && my_CC1101_all_step == 0 && my_GPRS_all_step == 0)
     {
         uint8_t my_txbuf[18] = TX101_calldata;
         uint8_t start_length = 14 + 6;
@@ -1481,18 +1598,20 @@ void Callback01(void const * argument)
 
 
     }
-    if(my_os_count1 % 7 == 0 && my_CC1101_all_step==0 && my_GPRS_all_step==0) //RTC
+    if(my_os_count1 % 13 == 0 && my_CC1101_all_step == 0 && my_GPRS_all_step == 0) //RTC
     {
-         if((my_CC1101_all_step>=0X5000 && my_CC1101_all_step<=0X5400) ||
-							(my_CC1101_all_step>=0X0050 && my_CC1101_all_step<=0X0054)  ||
-						   my_CC1101_all_step==0X0002 || my_CC1101_all_step==0X0200
-						)
-				return;
-				
-				HAL_RTC_GetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN);
+        if((my_CC1101_all_step >= 0X5000 && my_CC1101_all_step <= 0X5400) ||
+                (my_CC1101_all_step >= 0X0050 && my_CC1101_all_step <= 0X0054)  ||
+                my_CC1101_all_step == 0X0002 || my_CC1101_all_step == 0X0200
+          )
+            return;
+
+        HAL_RTC_GetDate(&hrtc, &my_RTC_date, RTC_FORMAT_BIN); //读取RTC时间
         HAL_RTC_GetTime(&hrtc, &my_RTC_time, RTC_FORMAT_BIN);
-        printf("===RTC= %d/%d/%d %d:%d:%d====\n",
-               my_RTC_date.Year, my_RTC_date.Month, my_RTC_date.Date, my_RTC_time.Hours, my_RTC_time.Minutes, my_RTC_time.Seconds);
+        printf("@@RTC= %d/%d/%d %d:%d:%d== RSSI=[%d]-[%d]-[%d]\n",
+               my_RTC_date.Year, my_RTC_date.Month, my_RTC_date.Date, my_RTC_time.Hours, my_RTC_time.Minutes, my_RTC_time.Seconds,
+							 my_indicator_data[0].xinhao_db,my_indicator_data[1].xinhao_db,my_indicator_data[2].xinhao_db			
+				);
 
     }
     //====从CPU==END===
@@ -1507,7 +1626,7 @@ void Callback01(void const * argument)
     /*
     模拟报警中断，短路和接地报警中断
     */
-		#if Use_gprs_ALarm_simulation_word==1
+#if Use_gprs_ALarm_simulation_word==1
     if(my_os_count1 % 37 == 0)
     {
         my_indicator_tx_index = 2;
@@ -1525,7 +1644,7 @@ void Callback01(void const * argument)
 
         }
     }
-    #endif
+#endif
 
     LED2_TOGGLE; //led2翻转表示，OS系统活着，1秒1次，软定时器
     /* USER CODE END Callback01 */
