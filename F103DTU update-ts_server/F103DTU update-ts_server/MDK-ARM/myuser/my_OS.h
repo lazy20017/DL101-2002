@@ -158,6 +158,7 @@ void  my_fun_GPRS_TX_catalog(void);
 void  my_fun_GPRS_TX_file_data_1(void);
 void  my_fun_GPRS_TX_file_data_2(void);
 void  my_fun_GPRS_TX_file_data_3(void);
+void my_fun_GPRS_generate_68_fram(uint8_t *my_buf,uint8_t my_length,uint8_t my_FC,uint8_t my_TI,uint8_t my_COT,uint8_t my_VSQ_SQ,uint8_t my_VSQ_1_7);
 #define MY_yaoxin_status_OK  0X01    //如果采用双点信息，就是0X01正常，0x02故障。如果是单点信息，00为正常，01为故障
 #define MY_yaoxin_status_ERROR 0x02
 

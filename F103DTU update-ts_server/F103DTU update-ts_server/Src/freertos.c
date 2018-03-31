@@ -831,7 +831,7 @@ void StartTask04(void const * argument)
 				
 							
 				my_fun_gprs_time_dialog_tx(my_step, 0X0000, 0x5500, 0, my_fun_GPRS_TX_file_data_2); //文件发送
-				my_fun_gprs_time_dialog_tx(my_step, 0X0056, 0x5600, 1, my_fun_GPRS_TX_file_data_3);  //文件数据发送，确定。同时启动发送启动文件传输
+				my_fun_gprs_time_dialog_tx(my_step, 0X0056, 0x5600, 1, my_fun_GPRS_TX_file_data_3);  //文件数据发送，ok确定。同时启动发送启动文件传输
 
 
         
@@ -976,17 +976,21 @@ void StartTask05(void const * argument)
 
 
 
-        //C版程序
+        
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				//C版程序
         //===计数值同步
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0x00E5, 0XE600, 0, my_fun_GPRS_RX_test1);
         //========GPRS心跳
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x1F00, 0X001F, 0X0000, 1, my_fun_GPRS_RX_test1); //心跳包接收到OK帧
-
-
-
-
-
-
 
         //DTU参数设置
         my_fun_gprs_time_dialog_rx(&myQueue01Handle, my_step, 0x0000, 0X0081, 0X8100, 0, my_fun_GPRS_RX_change_parameter);

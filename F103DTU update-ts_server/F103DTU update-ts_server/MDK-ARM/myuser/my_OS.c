@@ -97,12 +97,20 @@ uint8_t my_CC1101_receive_cmd_ID = 0;
 uint16_t my_gprs_count_time = 0; //GPRS通信，周期数据，传递给SERVER的DTU收到的zsq的计数值
 uint8_t  my_gprs_RTC_buf[7] = {0};
 uint8_t  my_get_data_buf[2] = {0};
+
 char my_file_catalog_buf[15] = {0};
 uint8_t my_file_catalog_status = 0; //0目录下所有文件，1满足时间段文件
 uint8_t my_file_RTC_start_time[7] = {0}; //查询开始时间
 uint8_t my_file_RTC_end_time[7] = {0}; //查询结束时间
-uint16_t my_file_part = 0; //文件准备发送的 段 数量，0表示没有发送的段，最大65535
 
+
+uint8_t my_file_class_ID=0;  //读取文件类型的ID，1为SOE事件，2为定点记录数据，3为日志
+uint8_t my_file_name_buf[31]={0};  //文件名称缓冲区，包含路径、名称、扩展名
+uint8_t my_file_name_count=0;      
+uint16_t my_file_part_count = 0; //文件准备发送的 段 数量，0表示没有发送的段，最大65535,倒计数方式，1是最后一个段
+uint32_t my_file_data_count=0;  //文件中的字节数量
+uint8_t my_file_part_data_count_aver=0;  //除最后一段外，每段的字节数量
+uint8_t my_file_part_data_count_end=0;  //最后一段，字节数量
 
 union MY_float
 {
@@ -2986,13 +2994,54 @@ uint8_t my_fun_GPRS_RX_test1(void) //此函数为结束函数，收到OK帧后，结束对话过程
 
 
     }
+		
+		else if(my_GPRS_all_step == 0X0053)
+		{
+			 uint8_t kk=0;
+			 my_file_name_count=USART1_my_frame[4 +9 + 3 + 2];//文件名长度
+			 if(my_file_name_count>30)
+			 {
+				 for(kk=0;kk<30;kk++)
+				 {
+					 
+					 my_file_name_buf[kk]=USART1_my_frame[4 +9 + 3 + 3+kk]; //文件名
+					 		 
+				 }
+			 }
+			 else
+			 {
+				 for(kk=0;kk<my_file_name_count;kk++)
+				 {
+					 
+					 my_file_name_buf[kk]=USART1_my_frame[4 +9 + 3 + 3+kk]; //文件名
+					 		 
+				 }
+				 
+			 }
+				 
+			
+			
+			
+		}
+		
 
     //读取文件激活确认
     else if(my_GPRS_all_step == 0X0054)
     {
         //文件激活接收
+			
+			
+			//分析需要发送那个文件，具体总的字节数量，分段数量，每段的数据量，最后一段的数据量，指针位置开始位置
+			//思路，判断文件类型，取数据，计算分段数量
+			my_file_class_ID=1;
+			my_file_data_count=270;
+			my_file_part_count=3;
+			my_file_part_data_count_aver=100;
+			my_file_part_data_count_end=70;
+			
+			
 
-        //发送文件
+        //发送文件，如果可以发送，进入发送状态 
         my_GPRS_all_step = 0;
         uint16_t my_step = 0X5500;
         xQueueSend(myQueue01Handle, &my_step, 100);	//标识下一个状态,开启文件发送
@@ -3001,7 +3050,16 @@ uint8_t my_fun_GPRS_RX_test1(void) //此函数为结束函数，收到OK帧后，结束对话过程
 
     }
 
+		 else if(my_GPRS_all_step == 0X0056)
+    {
+        //文件激活接收
+			
+			
+			
 
+
+
+    }
 
 
 
@@ -5339,14 +5397,105 @@ void  my_fun_GPRS_TX_catalog(void)
 void  my_fun_GPRS_TX_file_data_1(void) //读取文件激活确认
 {
     //发送确认OK文件，短帧
+		my_fun_GPRS_TX_OK_80(); //回复OK帧
 
     //发送文件激活确认，长帧
+	my_fun_GPRS_generate_68_fram(my_usart1_tx_buf1,(4+9+3+11+my_file_name_count),0x03,210,5,0X00,0X01);
+	
+	
+	my_usart1_tx_buf1[4+9+1]=0X00;
+	my_usart1_tx_buf1[4+9+2]=0X00;
+	my_usart1_tx_buf1[4+9+3]=0X02;
+	
+	my_usart1_tx_buf1[4+9+3+1]=4;
+	my_usart1_tx_buf1[4+9+3+2]=0;
+	my_usart1_tx_buf1[4+9+3+3]=my_file_name_count;
+
+	
+	//文件名称--开始
+	uint8_t kk=0;
+	for(kk=0;kk<my_file_name_count;kk++)
+	{
+		my_usart1_tx_buf1[4+9+3+4+kk]=my_file_name_buf[kk];
+		
+	}
+	
+	//文件名称--结束
+	
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+1]=0;
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+2]=0;
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+3]=0;
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+4]=0;
+	
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+4+1]=my_file_data_count;
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+4+2]=my_file_data_count>>8;
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+4+3]=my_file_data_count>>16;
+	my_usart1_tx_buf1[4+9+3+3+my_file_name_count+4+4]=my_file_data_count>>24;
+	
+	
+	my_fun_101check_generate(my_usart1_tx_buf1, 0);
+  my_at_senddata(my_usart1_tx_buf1);
 
 }
 
 void  my_fun_GPRS_TX_file_data_2(void) //读取文件，发送数据
 {
-
+		 //发送文件激活确认，长帧
+	my_fun_GPRS_generate_68_fram(my_usart1_tx_buf1,(4+9+3+11+my_file_name_count),0x03,210,5,0X00,0X01);
+	
+	my_usart1_tx_buf1[4+9+1]=0X00;
+	my_usart1_tx_buf1[4+9+2]=0X00;
+	my_usart1_tx_buf1[4+9+3]=0X02;
+	
+	my_usart1_tx_buf1[4+9+3+1]=5; //操作标识
+	
+	//文件ID
+	my_usart1_tx_buf1[4+9+3+2]=0;
+	my_usart1_tx_buf1[4+9+3+3]=0;
+	my_usart1_tx_buf1[4+9+3+4]=0;
+	my_usart1_tx_buf1[4+9+3+5]=0;
+	
+	//数据段号
+	my_usart1_tx_buf1[4+9+3+6]=0X01;
+	my_usart1_tx_buf1[4+9+3+7]=0X02;
+	my_usart1_tx_buf1[4+9+3+8]=0X03;
+	my_usart1_tx_buf1[4+9+3+9]=0X04;
+	
+	//后续标识
+	my_usart1_tx_buf1[4+9+3+10]=1; //0标识后续没有数据，1标识后续有时间
+	
+	//文件数据
+	uint8_t my_temp_part_data_count=0;
+	if(my_file_part_count!=1)
+	{
+		my_temp_part_data_count=my_file_part_data_count_aver; //计算本段数据长度
+	}
+	else if(my_file_part_count==1)
+	{
+		my_temp_part_data_count=my_file_part_data_count_end ; //计算本段数据长度
+	}
+	//文件数据填充
+	uint8_t kk=0;
+	for(kk=0;kk<my_temp_part_data_count;kk++)
+	{
+		my_usart1_tx_buf1[4+9+3+10+1+kk]=kk+my_file_part_count;
+	}
+	
+	
+	
+		//校验码，文件数据的校验码
+	uint8_t my_file_data_CRC=0;	
+	for(kk=0;kk<my_temp_part_data_count;kk++)
+	{
+		my_file_data_CRC=my_file_data_CRC+my_usart1_tx_buf1[4+9+3+10+1+kk];
+	}
+	
+	my_usart1_tx_buf1[4+9+3+10+my_temp_part_data_count+1]=my_file_data_CRC;
+	
+	
+	//文件处理结束，发送
+	my_fun_101check_generate(my_usart1_tx_buf1, 0);
+  my_at_senddata(my_usart1_tx_buf1);
 
 }
 
@@ -5356,12 +5505,65 @@ void  my_fun_GPRS_TX_file_data_3(void) //读取文件，发送数据
     my_fun_GPRS_TX_OK_80(); //文件接收，回复OK帧
 
     //根据条件，启动下一段文件传输
-    if(my_file_part != 0)
+		my_file_part_count--;
+    if(my_file_part_count!= 0)
     {
         my_GPRS_all_step = 0;
         uint16_t my_step = 0X5500;
         xQueueSend(myQueue01Handle, &my_step, 100);	//标识下一个状态,开启文件发送
     }
+
+}
+/*
+参数：
+1：缓冲区首地址
+2.长度
+3.FC
+4.TI
+5.COT
+6.VSQ_SQ
+7.VSQ_1_7
+
+*/
+
+void my_fun_GPRS_generate_68_fram(uint8_t *my_buf,uint8_t my_length,uint8_t my_FC,uint8_t my_TI,uint8_t my_COT,uint8_t my_VSQ_SQ,uint8_t my_VSQ_1_7)
+{
+
+
+    my_usart1_tx_buf1[0] = 0x68;
+    my_usart1_tx_buf1[3] = 0x68;
+    my_usart1_tx_buf1[1] = my_length; //12*5+11=61
+    my_usart1_tx_buf1[2] = my_length;
+
+    //控制域码处理
+    my_101_DIR = 0X80;
+    my_101_PRM = 0X40;
+    if(my_GPRS_all_count == 1)
+        my_101_FCB = (~my_101_FCB) & 0X20;
+    my_101_FCV = 0X10;
+    my_101_FC = my_FC;
+
+    my_usart1_tx_buf1[4] = (my_101_DIR | my_101_PRM | my_101_FCB | my_101_FCV | my_101_FC); //控制域码为53/73
+
+    my_usart1_tx_buf1[5] = DTU_ADDRESS;
+    my_usart1_tx_buf1[6] = (DTU_ADDRESS >> 8);
+
+    my_usart1_tx_buf1[7] = my_TI; //特征标识码，数据方式，归一，浮点数，时标
+    my_usart1_tx_buf1[8] = (my_VSQ_SQ|my_VSQ_1_7); //序列方式，信息体个数
+    my_usart1_tx_buf1[9] = my_COT; //传输原因
+    my_usart1_tx_buf1[10] = 00; //传输原因
+
+    my_usart1_tx_buf1[11] = DTU_ADDRESS; //公共域地址
+    my_usart1_tx_buf1[12] = (DTU_ADDRESS >> 8);;
+
+    my_usart1_tx_buf1[13] = 0x00; //遥信信息体首地址
+    my_usart1_tx_buf1[14] = 0x00;
+
+
+    my_usart1_tx_buf1[4+ my_length] = 0XFF;
+    my_usart1_tx_buf1[4 + my_length + 1 ] = 0x16;
+
+    //==================================
 
 }
 
